@@ -1,0 +1,6 @@
+services:
+  - type: web
+      name: whatsapp-webhook
+          env: node
+              plan: free
+                  startCommand: npm install && npm start

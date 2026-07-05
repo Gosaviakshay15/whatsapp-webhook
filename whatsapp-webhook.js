@@ -109,4 +109,3 @@ app.listen(PORT, () => {
       subscribeWABA();
 });
 
-app.listen(PORT, () => console.log(`Webhook listening on :${PORT}`));

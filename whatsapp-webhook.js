@@ -71,4 +71,42 @@ function sendTemplate(to) {
     r.end();
 }
 
+    // Subscribe WABA to this app on startup
+const WABA_ID = "1638766997323046";
+const APP_ID = "1729079784960748";
+
+async function subscribeWABA() {
+      if (!ACCESS_TOKEN) {
+              console.warn("ACCESS_TOKEN not set, skipping WABA subscription");
+              return;
+      }
+      try {
+              const options = {
+                        hostname: "graph.facebook.com",
+                        path: `/v25.0/${WABA_ID}/subscribed_apps?app_id=${APP_ID}`,
+                        method: "POST",
+                        headers: {
+                                    "Authorization": `Bearer ${ACCESS_TOKEN}`,
+                                    "Content-Type": "application/x-www-form-urlencoded",
+                        },
+              };
+              const req = https.request(options, (res) => {
+                        let data = "";
+                        res.on("data", (chunk) => (data += chunk));
+                        res.on("end", () => {
+                                    console.log("WABA subscription response:", res.statusCode, data);
+                        });
+              });
+              req.on("error", (e) => console.error("WABA subscription error:", e));
+              req.end();
+      } catch (e) {
+              console.error("Failed to subscribe WABA:", e);
+      }
+}
+
+app.listen(PORT, () => {
+      console.log(`WhatsApp webhook listening on port ${PORT}`);
+      subscribeWABA();
+});
+
 app.listen(PORT, () => console.log(`Webhook listening on :${PORT}`));

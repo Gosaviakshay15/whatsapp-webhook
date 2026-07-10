@@ -14,6 +14,33 @@ const {
 
 const seen = new Set();
 
+const SHEET_URL = "https://script.google.com/macros/s/AKfycbzCj4Zb0RzCJtGhdhq28oZd_QVYUTbxQNSEzrJRGZ4tS5zpLivp92e0FMv-a7ejxBes/exec";
+const SHEET_KEY = "phy-enq-7xK93qQ2mR8v";
+
+function postToSheet(obj) {
+        try {
+                  const payload = JSON.stringify({ key: SHEET_KEY, ...obj });
+                  const u = new URL(SHEET_URL);
+                  const options = {
+                              hostname: u.hostname,
+                              path: u.pathname + u.search,
+                              method: "POST",
+                              headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(payload) },
+                  };
+                  const r = https.request(options, (resp) => {
+                              let data = "";
+                              resp.on("data", (c) => (data += c));
+                              resp.on("end", () => console.log("sheet log status", resp.statusCode));
+                  });
+                  r.on("error", (e) => console.error("sheet log error:", e));
+                  r.write(payload);
+                  r.end();
+        } catch (e) {
+                  console.error("postToSheet error:", e);
+        }
+}
+
+
 app.get("/webhook", (req, res) => {
         const mode = req.query["hub.mode"];
         const token = req.query["hub.verify_token"];
@@ -35,6 +62,16 @@ app.post("/webhook", (req, res) => {
                   if (!msg) return;
                   if (seen.has(msg.id)) return;
                   seen.add(msg.id);
+                  if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
+                              let flow = {};
+                              try { flow = JSON.parse(msg.interactive.nfm_reply.response_json); } catch (e) {}
+                              if (flow.overall_rating) {
+                                            postToSheet({ type: "feedback", phone: msg.from, case_id: flow.case_id, physio: flow.physio, case_type: flow.case_type, overall_rating: flow.overall_rating, physio_rating: flow.physio_rating, recommend: flow.recommend, improve: flow.improve });
+                              } else {
+                                            postToSheet({ phone: msg.from, name: flow.patient_name, mode: flow.mode, join_from: flow.join_from, time_pref: flow.time_pref, physio_choice: flow.physio_choice, condition: flow.condition, start_when: flow.start_when, source: flow.source });
+                              }
+                              return;
+                  }
                   sendTemplate(msg.from);
         } catch (e) {
                   console.error("handler error:", e);

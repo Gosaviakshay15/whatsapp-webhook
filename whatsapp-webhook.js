@@ -151,6 +151,38 @@ async function subscribeWABA() {
         }
 }
 
+
+// Website booking form (Wix landing page) -> sheet
+app.options("/wix", (req, res) => {
+        res.set({
+                  "Access-Control-Allow-Origin": "*",
+                  "Access-Control-Allow-Methods": "POST, OPTIONS",
+                  "Access-Control-Allow-Headers": "Content-Type",
+        });
+        res.sendStatus(204);
+});
+
+app.post("/wix", (req, res) => {
+        res.set("Access-Control-Allow-Origin", "*");
+        try {
+                  const b = req.body || {};
+                  if (!b.phone || String(b.phone).replace(/[^0-9]/g, "").length < 10) {
+                              return res.status(400).json({ error: "valid phone required" });
+                  }
+                  postToSheet({
+                              phone: String(b.phone).replace(/[^0-9]/g, "").replace(/^(\d{10})$/, "91$1"),
+                              name: b.name, mode: b.mode, join_from: b.join_from || "",
+                              time_pref: b.time_pref, physio_choice: b.physio_choice,
+                              condition: b.condition, start_when: b.start_when,
+                              source: "Website",
+                  });
+                  res.json({ ok: true });
+        } catch (e) {
+                  console.error("wix route error:", e);
+                  res.status(500).json({ error: "internal" });
+        }
+});
+
 app.listen(PORT, () => {
         console.log(`WhatsApp webhook listening on port ${PORT}`);
         subscribeWABA();

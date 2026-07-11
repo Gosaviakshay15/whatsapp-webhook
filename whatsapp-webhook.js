@@ -166,7 +166,7 @@ app.post("/wix", (req, res) => {
         res.set("Access-Control-Allow-Origin", "*");
         try {
                   const b = req.body || {};
-                  if (!b.phone || String(b.phone).replace(/[^0-9]/g, "").length < 10) {
+                  if (!b.phone || String(b.phone).replace(/[^0-9]/g, "").length < 8) {
                               return res.status(400).json({ error: "valid phone required" });
                   }
                   postToSheet({

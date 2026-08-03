@@ -34,7 +34,8 @@ const FALLBACK_TEXT = "Namaste from Physiocally! We can help with back pain, nec
 
 const TXT_CLINIC = "Consultation at our Andheri West clinic: with Dr. Akshay Gosavi Rs 3999, with our senior physiotherapist Rs 999. The consultation includes a full assessment and your treatment plan. Tap Book a session in the menu and our care team will confirm your slot right here on WhatsApp.";
 const TXT_HOME = "Home visit consultation anywhere in Mumbai with our senior physiotherapist: Rs 1499. Our physio comes to you with everything needed for assessment and treatment. Dr. Akshay personally consults at the clinic and online. Tap Book a session in the menu and our care team will confirm your slot right here on WhatsApp.";
-const TXT_ASK_LOCATION = "Online consultations are available worldwide. Which city and country will you be in during your session? Please also share your preferred time in your local time.";
+const TXT_ASK_LOCATION = "Online consultations are available worldwide. Which city and country will you be in during your session?";
+const TXT_NOTED = "Noted, thank you! Our care team will keep this in mind while confirming your slot. Tap Book a session in the menu whenever you are ready and we will lock it in for you.";
 const TXT_ONLINE_INDIA = "Online video consultation from India: with Dr. Akshay Gosavi Rs 3499, with our senior physiotherapist Rs 999. Location is confirmed while scheduling. Tap Book a session in the menu and our care team will confirm your slot right here on WhatsApp.";
 const TXT_INTL = "Thank you! Our care team personally handles bookings outside India. They will message you here shortly with your consultation details, charges and slots that suit your time zone.";
 const TXT_PHYSIOS = "Dr. Akshay Gosavi, Founder of Physiocally. Masters in Physiotherapy from Mumbai University, 10 years of clinical experience and known for accurately diagnosing the root cause of pain. Our senior physiotherapists are qualified, experienced experts in diagnosing and treating musculoskeletal pain and are rated highly by our patients. Physiocally has delivered over 1,00,000 sessions since 2022 with a 4.8 star Google rating.";
@@ -127,6 +128,7 @@ app.post("/webhook", (req, res) => {
       const st = getState(from);
       if (st === "awaiting_location") { state.delete(from); handleLocation(from, body); return; }
       if (st === "awaiting_condition") { state.delete(from); handleCondition(from, body); return; }
+      if (st === "post_location") { state.delete(from); sendTextTo(from, TXT_NOTED); return; }
       sendMenu(from);
       return;
     }
@@ -157,6 +159,7 @@ function handleLocation(from, body) {
     sendAlert("INTL enquiry: wa.me/" + from + " wants an online session. They said: " + body);
     postToSheet({ phone: from, mode: "Online", join_from: body, source: "INTL chat" });
   }
+  setState(from, "post_location");
 }
 
 function handleCondition(from, body) {

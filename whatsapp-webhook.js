@@ -32,16 +32,16 @@ const SHEET_KEY = "phy-enq-7xK93qQ2mR8v";
 
 const FALLBACK_TEXT = "Namaste from Physiocally! We can help with back pain, neck pain, sports injuries, post surgery recovery and more. To book a session, reply with your name, preferred mode (clinic, home visit or online) and preferred time. Our care team will confirm your slot right here on WhatsApp. You can also book at https://www.physiocally.com/book";
 
-const TXT_CLINIC = "Consultation at our Andheri West clinic: with Dr. Akshay Gosavi Rs 3999, with our senior physiotherapist Rs 999. The consultation includes a full assessment and your treatment plan. Dr. Akshay's consultation slots are 1 PM and 6 PM. Tap Book a session in the menu and our care team will confirm your slot right here on WhatsApp.";
-const TXT_HOME = "Home visit consultation anywhere in Mumbai with our senior physiotherapist: Rs 1499. Our physio comes to you with everything needed for assessment and treatment. Dr. Akshay personally consults at the clinic and online. Tap Book a session in the menu and our care team will confirm your slot right here on WhatsApp.";
-const TXT_ASK_LOCATION = "Online consultations are available worldwide. Which city and country will you be in during your session? Please also share your preferred time in your local time.";
-const TXT_NOTED = "Noted, thank you! Our care team will keep this in mind while confirming your slot. Tap Book a session in the menu whenever you are ready and we will lock it in for you.";
-const TXT_ONLINE_INDIA = "Online video consultation from India: with Dr. Akshay Gosavi Rs 3499, with our senior physiotherapist Rs 999. Dr. Akshay's consultation slots are 1 PM and 6 PM IST. Location is confirmed while scheduling. Tap Book a session in the menu and our care team will confirm your slot right here on WhatsApp.";
-const TXT_INTL = "Thank you! Our care team personally handles bookings outside India. They will message you here shortly with your consultation details, charges and slots that suit your time zone.";
-const TXT_PHYSIOS = "Dr. Akshay Gosavi, Founder of Physiocally. Masters in Physiotherapy from MUHS, 10 years of clinical experience and known for accurately diagnosing the root cause of pain.\n\nOur senior physiotherapists are qualified, experienced and experts in diagnosing and treating musculoskeletal pain, rated highly by our patients.\n\nPhysiocally has delivered over 1,00,000 sessions since 2022 with a 4.8 star Google rating.";
-const TXT_ASK_CONDITION = "Tell me what you are dealing with, for example back pain, migraine or knee pain, and I will tell you how physiotherapy can help.";
+const TXT_CLINIC = "🏥 *Consultation at our Andheri West clinic*\n\n👨‍⚕️ Dr. Akshay Gosavi: *Rs 3999*\n🩺 Senior Physiotherapist: *Rs 999*\n\nYour consultation includes a full assessment and your treatment plan.\n\n🕐 Dr. Akshay's consultation slots: *1 PM and 6 PM*\n\nTap *Book a session* in the menu and our care team will confirm your slot right here on WhatsApp ✅";
+const TXT_HOME = "🏠 *Home visit consultation, anywhere in Mumbai*\n\n🩺 Senior Physiotherapist: *Rs 1499*\n\nOur physio comes to you with everything needed for assessment and treatment. Dr. Akshay personally consults at the clinic and online.\n\nTap *Book a session* in the menu and our care team will confirm your slot right here on WhatsApp ✅";
+const TXT_ASK_LOCATION = "🌍 Online consultations are available *worldwide*.\n\nWhich city and country will you be in during your session? Please also share your preferred time in *your local time* 🕐";
+const TXT_NOTED = "Noted, thank you! 🙏 Our care team will keep this in mind while confirming your slot.\n\nTap *Book a session* in the menu whenever you are ready and we will lock it in for you.";
+const TXT_ONLINE_INDIA = "💻 *Online video consultation from India*\n\n👨‍⚕️ Dr. Akshay Gosavi: *Rs 3499*\n🩺 Senior Physiotherapist: *Rs 999*\n\n🕐 Dr. Akshay's consultation slots: *1 PM and 6 PM IST*\nLocation is confirmed while scheduling.\n\nTap *Book a session* in the menu and our care team will confirm your slot right here on WhatsApp ✅";
+const TXT_INTL = "🌍 Thank you!\n\nOur care team personally handles bookings outside India. They will message you here shortly with your consultation details, charges and slots that suit your time zone 🕐";
+const TXT_PHYSIOS = "👨‍⚕️ *Dr. Akshay Gosavi, Founder of Physiocally*\nMasters in Physiotherapy (MUHS)\n10 years of clinical experience\nExpert in accurately diagnosing the root cause of pain\n\n🩺 *Our Senior Physiotherapists*\nQualified, experienced and experts in diagnosing and treating musculoskeletal pain, rated highly by our patients.\n\n⭐ *Physiocally* has delivered over *1,00,000 sessions* since 2022 with a *4.8 star* Google rating.";
+const TXT_ASK_CONDITION = "Tell me what you are dealing with, for example back pain, migraine or knee pain, and I will tell you how physiotherapy can help 💬";
 
-const COND_CTA = " Book a consultation and our physio will assess your case and design your plan.";
+const COND_CTA = "\n\n📅 *Book a consultation* and our physio will assess your case and design your plan.";
 const CONDITIONS = [
   { k: ["migraine", "headache", "head ache"], t: "Many headaches and migraines have a neck related trigger. Physiotherapy relieves muscle tension and stiffness in the neck and shoulders and can reduce how often and how strongly they occur." },
   { k: ["neck", "cervical"], t: "Neck pain and stiffness respond well to physiotherapy. We use targeted movement, deep neck muscle activation and workstation guidance to relieve pain at its source." },
@@ -222,7 +222,7 @@ function sendMenu(to) {
     type: "interactive",
     interactive: {
       type: "list",
-      body: { text: "Namaste from Physiocally! We are happy to help you feel better. Tap an option below and I will get you the answer right away." },
+      body: { text: "Namaste from *Physiocally* 🙏\nWe are happy to help you feel better.\n\nTap an option below and I will get you the answer right away 👇" },
       action: {
         button: "Choose an option",
         sections: [
@@ -248,7 +248,7 @@ function sendModeButtons(to) {
     type: "interactive",
     interactive: {
       type: "button",
-      body: { text: "Where would you like your session?" },
+      body: { text: "Where would you like your session? 🏥" },
       action: {
         buttons: [
           { type: "reply", reply: { id: "mode_clinic", title: "Clinic Andheri West" } },
@@ -267,7 +267,7 @@ function sendFlow(to) {
     type: "interactive",
     interactive: {
       type: "flow",
-      body: { text: "Great! Fill this quick form and our care team will confirm your slot right here on WhatsApp." },
+      body: { text: "Great! 🎉 Fill this quick form and our care team will confirm your slot right here on WhatsApp." },
       action: {
         name: "flow",
         parameters: {

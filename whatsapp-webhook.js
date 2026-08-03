@@ -13,6 +13,7 @@ const {
 } = process.env;
 
 const seen = new Set();
+const fbSent = new Set();
 
 const SHEET_URL = "https://script.google.com/macros/s/AKfycbzCj4Zb0RzCJtGhdhq28oZd_QVYUTbxQNSEzrJRGZ4tS5zpLivp92e0FMv-a7ejxBes/exec";
 const SHEET_KEY = "phy-enq-7xK93qQ2mR8v";
@@ -58,6 +59,8 @@ app.post("/webhook", (req, res) => {
     const value = req.body?.entry?.[0]?.changes?.[0]?.value;
     if (value?.statuses) {
       console.log("status update:", JSON.stringify(value.statuses));
+      const st = value.statuses[0] || {};
+      if (st.status === "failed" && st.recipient_id && !fbSent.has(st.recipient_id)) fbSent.add(st.recipient_id), setTimeout(() => fbSent.delete(st.recipient_id), 21600000), sendText(st.recipient_id);
     }
     const msg = value?.messages?.[0];
     if (!msg) return;

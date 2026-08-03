@@ -18,6 +18,9 @@ const FDO_ALERT = process.env.FDO_ALERT_NUMBER || "918169168633";
 const seen = new Set();
 const fbSent = new Set();
 const state = new Map();
+const human = new Map();
+const chats = new Map();
+const INBOX_PIN = process.env.INBOX_PIN || "72934";
 
 function setState(from, s) { state.set(from, { s, ts: Date.now() }); }
 function getState(from) {
@@ -110,6 +113,7 @@ app.post("/webhook", (req, res) => {
     if (msg.type === "interactive") {
       const it = msg.interactive;
       if (it?.type === "nfm_reply") {
+        logChat(from, "in", "[Booking form submitted]");
         let flow = {};
         try { flow = JSON.parse(it.nfm_reply.response_json); } catch (e) {}
         if (flow.overall_rating) {
@@ -120,11 +124,13 @@ app.post("/webhook", (req, res) => {
         return;
       }
       const id = it?.list_reply?.id || it?.button_reply?.id;
-      if (id) { routeSelection(from, id); return; }
+      if (id) { logChat(from, "in", (it.list_reply && it.list_reply.title) || (it.button_reply && it.button_reply.title) || id); if (isHuman(from)) return; routeSelection(from, id); return; }
       return;
     }
     if (msg.type === "text") {
       const body = (msg.text?.body || "").trim();
+      logChat(from, "in", body);
+      if (isHuman(from)) return;
       const st = getState(from);
       if (st === "awaiting_location") { state.delete(from); handleLocation(from, body); return; }
       if (st === "awaiting_condition") { state.delete(from); handleCondition(from, body); return; }
@@ -158,6 +164,8 @@ function handleLocation(from, body) {
     sendTextTo(from, TXT_INTL);
     sendAlert("INTL enquiry: wa.me/" + from + " wants an online session. They said: " + body);
     postToSheet({ phone: from, mode: "Online", join_from: body, source: "INTL chat" });
+    setHuman(from, 6);
+    return;
   }
   setState(from, "post_location");
 }
@@ -169,6 +177,7 @@ function handleCondition(from, body) {
 }
 
 function waSend(payload, label, onFail) {
+  try { chatLogOut(payload); } catch (e) {}
   const body = JSON.stringify(payload);
   const options = {
     hostname: "graph.facebook.com",
@@ -395,3 +404,171 @@ app.listen(PORT, () => {
   console.log(`WhatsApp webhook listening on port ${PORT}`);
   subscribeWABA();
 });
+
+// ---- MINI INBOX (manual chat as the clinic number) ----
+function logChat(phone, dir, text) {
+  if (!phone) return;
+  let a = chats.get(phone);
+  if (!a) { a = []; chats.set(phone, a); }
+  a.push({ d: dir, t: String(text || "").slice(0, 1000), ts: Date.now() });
+  if (a.length > 200) a.splice(0, a.length - 200);
+  postToSheet({ type: "chat", phone: phone, dir: dir, text: String(text || "").slice(0, 500) });
+}
+
+function chatLogOut(payload) {
+  const to = payload.to;
+  if (!to) return;
+  let txt = "";
+  if (payload.type === "text") txt = payload.text.body;
+  else if (payload.type === "interactive") {
+    const it = payload.interactive;
+    const kind = it.type === "list" ? "Menu" : it.type === "button" ? "Buttons" : it.type === "flow" ? "Booking form" : "Interactive";
+    txt = "[" + kind + "] " + ((it.body && it.body.text) || "");
+  }
+  else if (payload.type === "template") txt = "[Template: " + payload.template.name + "]";
+  else if (payload.type === "document") txt = "[Document: " + (payload.document.filename || "file") + "]";
+  else txt = "[" + payload.type + "]";
+  let a = chats.get(to);
+  if (!a) { a = []; chats.set(to, a); }
+  a.push({ d: "out", t: txt.slice(0, 1000), ts: Date.now() });
+  if (a.length > 200) a.splice(0, a.length - 200);
+  postToSheet({ type: "chat", phone: to, dir: "out", text: txt.slice(0, 500) });
+}
+
+function isHuman(p) {
+  const t = human.get(p);
+  if (!t) return false;
+  if (Date.now() > t) { human.delete(p); return false; }
+  return true;
+}
+
+function setHuman(p, hours) {
+  human.set(p, Date.now() + (hours || 6) * 3600 * 1000);
+}
+
+app.get("/inbox", (req, res) => {
+  if (req.query.pin !== INBOX_PIN) return res.status(403).send("Physiocally Inbox. Open with /inbox?pin=YOURPIN");
+  res.set("Content-Type", "text/html; charset=utf-8");
+  res.send(INBOX_HTML.replace("__PIN__", INBOX_PIN));
+});
+
+app.get("/inbox/data", (req, res) => {
+  if (req.query.pin !== INBOX_PIN) return res.status(403).json({ error: "pin" });
+  const threads = [];
+  chats.forEach((msgs, phone) => {
+    threads.push({ phone: phone, human: isHuman(phone), last: msgs.length ? msgs[msgs.length - 1].ts : 0, msgs: msgs });
+  });
+  threads.sort((a, b) => b.last - a.last);
+  res.json({ threads: threads });
+});
+
+app.post("/inbox/send", (req, res) => {
+  const b = req.body || {};
+  if (b.pin !== INBOX_PIN) return res.status(403).json({ error: "pin" });
+  const phone = String(b.phone || "").replace(/[^0-9]/g, "");
+  const text = String(b.text || "").trim();
+  if (phone.length < 11 || !text) return res.status(400).json({ error: "phone and text required" });
+  waSend({ messaging_product: "whatsapp", to: phone, type: "text", text: { preview_url: false, body: text } }, "inbox send", () => sendAlert("Reply to wa.me/" + phone + " could not be delivered. The 24 hour chat window may be closed."));
+  setHuman(phone, 6);
+  res.json({ ok: true });
+});
+
+app.post("/inbox/bot", (req, res) => {
+  const b = req.body || {};
+  if (b.pin !== INBOX_PIN) return res.status(403).json({ error: "pin" });
+  const phone = String(b.phone || "").replace(/[^0-9]/g, "");
+  if (b.on) { human.delete(phone); } else { setHuman(phone, 6); }
+  res.json({ ok: true, human: isHuman(phone) });
+});
+
+const INBOX_HTML = `<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Physiocally Inbox</title>
+<style>
+:root { --grn:#0D4D2E; --gld:#B8860B; --bg:#f2f6f2; }
+* { box-sizing:border-box; margin:0; font-family:system-ui,Segoe UI,Arial,sans-serif; }
+body { height:100vh; display:flex; flex-direction:column; background:var(--bg); }
+header { background:var(--grn); color:#fff; padding:10px 16px; font-weight:700; display:flex; justify-content:space-between; align-items:center; }
+header small { color:#d9c98a; font-weight:400; }
+main { flex:1; display:flex; min-height:0; }
+#list { width:280px; border-right:1px solid #ddd; overflow-y:auto; background:#fff; }
+.th { padding:12px 14px; border-bottom:1px solid #eee; cursor:pointer; }
+.th:hover { background:#f0f7f0; }
+.th.on { background:#e3efe3; }
+.th .p { font-weight:700; color:#222; font-size:14px; }
+.th .s { color:#777; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:3px; }
+.th .b { font-size:10px; padding:1px 7px; border-radius:9px; color:#fff; float:right; }
+.b.bot { background:#2e7d32; } .b.hum { background:var(--gld); }
+#chat { flex:1; display:flex; flex-direction:column; min-width:0; }
+#msgs { flex:1; overflow-y:auto; padding:18px; display:flex; flex-direction:column; gap:6px; }
+.m { max-width:70%; padding:8px 12px; border-radius:12px; font-size:14px; white-space:pre-wrap; word-wrap:break-word; }
+.in { background:#fff; align-self:flex-start; border:1px solid #e0e0e0; }
+.out { background:#d7ecd7; align-self:flex-end; }
+.m small { display:block; color:#999; font-size:10px; margin-top:4px; }
+#bar { display:flex; gap:8px; padding:10px; background:#fff; border-top:1px solid #ddd; }
+#txt { flex:1; padding:10px; border:1px solid #ccc; border-radius:8px; font-size:14px; resize:none; height:44px; }
+button { background:var(--grn); color:#fff; border:0; border-radius:8px; padding:0 18px; font-weight:700; cursor:pointer; }
+#togglebot { background:var(--gld); }
+#empty { flex:1; display:flex; align-items:center; justify-content:center; color:#999; }
+@media (max-width:700px){ #list{width:110px} .th .s{display:none} }
+</style></head><body>
+<header><span>Physiocally Inbox</span><small id="hint">replies go out as +91 85911 68633</small></header>
+<main>
+  <div id="list"></div>
+  <div id="chat">
+    <div id="msgs"><div id="empty">Select a chat</div></div>
+    <div id="bar">
+      <button id="togglebot" onclick="toggleBot()" style="display:none">Bot: on</button>
+      <textarea id="txt" placeholder="Type a reply. Sending pauses the bot for 6 hours."></textarea>
+      <button onclick="send()">Send</button>
+    </div>
+  </div>
+</main>
+<script>
+const pin = "__PIN__";
+let cur = null, data = { threads: [] };
+function fmt(ts){ const d = new Date(ts); return d.toLocaleString("en-IN", { hour:"2-digit", minute:"2-digit", day:"2-digit", month:"short" }); }
+async function load(){
+  try {
+    const r = await fetch("/inbox/data?pin=" + pin);
+    data = await r.json();
+    renderList();
+    if (cur) renderChat();
+  } catch(e){}
+}
+function renderList(){
+  const el = document.getElementById("list");
+  el.innerHTML = data.threads.map(t => {
+    const lastMsg = t.msgs.length ? t.msgs[t.msgs.length-1].t : "";
+    return '<div class="th ' + (cur === t.phone ? "on" : "") + '" onclick="openChat(\\'' + t.phone + '\\')">' +
+      '<span class="b ' + (t.human ? "hum" : "bot") + '">' + (t.human ? "HUMAN" : "BOT") + '</span>' +
+      '<div class="p">+' + t.phone + '</div><div class="s">' + lastMsg.replace(/</g, "&lt;") + '</div></div>';
+  }).join("");
+}
+function openChat(p){ cur = p; renderList(); renderChat(); }
+function renderChat(){
+  const t = data.threads.find(x => x.phone === cur);
+  const el = document.getElementById("msgs");
+  const tb = document.getElementById("togglebot");
+  if (!t) { el.innerHTML = '<div id="empty">Select a chat</div>'; tb.style.display = "none"; return; }
+  tb.style.display = "";
+  tb.textContent = t.human ? "Bot: OFF" : "Bot: ON";
+  el.innerHTML = t.msgs.map(m => '<div class="m ' + (m.d === "in" ? "in" : "out") + '">' + m.t.replace(/</g, "&lt;") + '<small>' + fmt(m.ts) + '</small></div>').join("");
+  el.scrollTop = el.scrollHeight;
+}
+async function send(){
+  const txt = document.getElementById("txt");
+  if (!cur || !txt.value.trim()) return;
+  await fetch("/inbox/send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: pin, phone: cur, text: txt.value.trim() }) });
+  txt.value = "";
+  setTimeout(load, 600);
+}
+async function toggleBot(){
+  const t = data.threads.find(x => x.phone === cur);
+  if (!t) return;
+  await fetch("/inbox/bot", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: pin, phone: cur, on: t.human }) });
+  setTimeout(load, 400);
+}
+document.getElementById("txt").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });
+load(); setInterval(load, 8000);
+</script></body></html>`;

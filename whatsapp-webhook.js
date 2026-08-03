@@ -403,6 +403,7 @@ app.post("/wix", (req, res) => {
 app.listen(PORT, () => {
   console.log(`WhatsApp webhook listening on port ${PORT}`);
   subscribeWABA();
+  hydrateChats();
 });
 
 // ---- MINI INBOX (manual chat as the clinic number) ----
@@ -454,6 +455,7 @@ app.get("/inbox", (req, res) => {
 
 app.get("/inbox/data", (req, res) => {
   if (req.query.pin !== INBOX_PIN) return res.status(403).json({ error: "pin" });
+  if (!hydrated && chats.size === 0) hydrateChats();
   const threads = [];
   chats.forEach((msgs, phone) => {
     threads.push({ phone: phone, human: isHuman(phone), last: msgs.length ? msgs[msgs.length - 1].ts : 0, msgs: msgs });
@@ -572,3 +574,42 @@ async function toggleBot(){
 document.getElementById("txt").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });
 load(); setInterval(load, 8000);
 </script></body></html>`;
+
+// ---- CHAT HISTORY REHYDRATION (survives free tier restarts) ----
+let hydrated = false;
+function hydrateChats() {
+  hydrated = true;
+  const hbody = JSON.stringify({ key: SHEET_KEY, type: "chatload" });
+  const hu = new URL(SHEET_URL);
+  const hreq = https.request({ hostname: hu.hostname, path: hu.pathname + hu.search, method: "POST", headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(hbody) } }, (res) => {
+    if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
+      res.resume();
+      https.get(res.headers.location, (r2) => collectHistory(r2));
+      return;
+    }
+    collectHistory(res);
+  });
+  hreq.on("error", (e) => { hydrated = false; console.log("hydrate error", e.message); });
+  hreq.write(hbody);
+  hreq.end();
+}
+function collectHistory(res) {
+  let d = "";
+  res.on("data", (c) => { d += c; });
+  res.on("end", () => {
+    try {
+      const data = JSON.parse(d);
+      if (!data.rows) { console.log("hydrate: no rows"); return; }
+      data.rows.forEach((r) => {
+        const phone = String(r[1] || "");
+        if (!phone) return;
+        let a = chats.get(phone);
+        if (!a) { a = []; chats.set(phone, a); }
+        a.push({ d: r[2] === "out" ? "out" : "in", t: String(r[3] || "").slice(0, 1000), ts: Number(r[0]) || Date.now() });
+      });
+      chats.forEach((a) => { a.sort((x, y) => x.ts - y.ts); if (a.length > 200) a.splice(0, a.length - 200); });
+      console.log("hydrated chats:", chats.size, "threads");
+    } catch (e) { console.log("hydrate parse error", e.message); }
+  });
+  res.on("error", () => { hydrated = false; });
+}

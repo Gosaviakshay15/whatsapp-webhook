@@ -3,6 +3,31 @@ const https = require("https");
 const app = express();
 app.use(express.json());
 
+// Payment recorded in the sheet -> booking confirmation + invoice to patient
+app.post("/notify", (req, res) => {
+  try {
+    const b = req.body || {};
+    if (b.key !== SHEET_KEY) return res.status(403).json({ error: "forbidden" });
+    const phone = String(b.phone || "").replace(/[^0-9]/g, "").replace(/^(\d{10})$/, "91$1");
+    if (phone.length < 11) return res.status(400).json({ error: "valid phone required" });
+    const name = b.name || "there";
+    const amount = b.amount ? "Rs " + b.amount : "your payment";
+    const physio = b.physio ? " with " + b.physio : "";
+    const confirmText = "Namaste " + name + "! Your payment of " + amount + " is received and your booking" + physio + " is confirmed. Our care team will share your session timing right here on WhatsApp. For any change just reply on this chat. Thank you for choosing Physiocally!";
+    waSend({ messaging_product: "whatsapp", to: phone, type: "text", text: { preview_url: false, body: confirmText } }, "send confirm", () => sendTextTo(FDO_ALERT, "Auto confirmation could not be delivered to wa.me/" + phone + ". Please confirm the booking manually."));
+    if (b.invoice_url) {
+      setTimeout(() => {
+        waSend({ messaging_product: "whatsapp", to: phone, type: "document", document: { link: b.invoice_url, filename: b.invoice_name || "Physiocally_Invoice.pdf" } }, "send invoice", () => sendTextTo(phone, "Your invoice: " + b.invoice_url));
+      }, 2000);
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    console.error("notify error:", e);
+    res.status(500).json({ error: "internal" });
+  }
+});
+
+
 const {
   VERIFY_TOKEN,
   ACCESS_TOKEN,

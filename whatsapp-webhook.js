@@ -115,9 +115,9 @@ app.post("/webhook", (req, res) => {
     if (msg.type === "interactive") {
       const it = msg.interactive;
       if (it?.type === "nfm_reply") {
-        logChat(from, "in", "[Booking form submitted]");
         let flow = {};
         try { flow = JSON.parse(it.nfm_reply.response_json); } catch (e) {}
+        logChat(from, "in", formSummary(flow));
         if (flow.overall_rating) {
           postToSheet({ type: "feedback", phone: from, case_id: flow.case_id, physio: flow.physio, case_type: flow.case_type, overall_rating: flow.overall_rating, physio_rating: flow.physio_rating, recommend: flow.recommend, improve: flow.improve });
         } else {
@@ -451,7 +451,7 @@ function isHuman(p) {
 }
 
 function setHuman(p, hours) {
-  human.set(p, Date.now() + (hours || 6) * 3600 * 1000);
+  human.set(p, Date.now() + (hours || 1) * 3600 * 1000);
 }
 
 app.get("/inbox", (req, res) => {
@@ -528,6 +528,8 @@ button { background:var(--grn); color:#fff; border:0; border-radius:8px; padding
     <div id="msgs"><div id="empty">Select a chat</div></div>
     <div id="bar">
       <button id="togglebot" onclick="toggleBot()" style="display:none">Bot: on</button>
+      <button onclick="quick('payment')" title="Send payment details and QR">Payment details</button>
+      <button onclick="quick('slot')" title="Compose a slot confirmation">Slot confirm</button>
       <textarea id="txt" placeholder="Type a reply. Sending pauses the bot for 6 hours."></textarea>
       <button onclick="send()">Send</button>
     </div>
@@ -565,6 +567,21 @@ function renderChat(){
   function md(x) { var h = String(x || "").replace(/</g, "&lt;"); return h.replace(new RegExp("https?://[^ \\n<]+", "g"), function(u) { var l = '<a href="' + u + '" target="_blank" style="color:inherit;word-break:break-all">' + u + '</a>'; if (u.indexOf("uc?export=view") !== -1) l += '<a href="' + u + '" target="_blank"><img src="' + u + '" style="max-width:220px;max-height:220px;border-radius:8px;display:block;margin-top:4px"/></a>'; return l; }); }
   el.innerHTML = t.msgs.map(m => '<div class="m ' + (m.d === "in" ? "in" : "out") + '">' + md(m.t) + '<small>' + fmt(m.ts) + '</small></div>').join("");
   el.scrollTop = el.scrollHeight;
+}
+async function quick(kind){
+  if (!cur) { alert("Open a chat first"); return; }
+  if (kind === "slot") {
+    const physio = prompt("Physio name?", "");
+    if (!physio) return;
+    const slot = prompt("Slot? e.g. Tomorrow 6:00 PM", "");
+    if (!slot) return;
+    document.getElementById("txt").value = "Namaste! \u{1F64F} Your session is confirmed with *" + physio + "* on *" + slot + "*. Please be ready 5 minutes early. Reply here if you need to reschedule.";
+    document.getElementById("txt").focus();
+    return;
+  }
+  if (!confirm("Send payment details and QR to this patient?")) return;
+  await fetch("/inbox/saved", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: pin, phone: cur, kind: kind }) });
+  setTimeout(load, 1200);
 }
 async function send(){
   const txt = document.getElementById("txt");
@@ -752,4 +769,46 @@ app.post("/alert", (req, res) => {
     sendAlert(String(b.text).slice(0, 900));
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: String(e) }); }
+});
+
+
+// ---- SAVED REPLIES + FORM SUMMARY ----
+const QR_URL = "https://drive.google.com/uc?export=view&id=1sEzHDSKGemgfQ9CwKJyi507X-N80GiV8";
+const TXT_PAYMENT = "*Payment details*\n\nAccount Name: Physiocally\nAccount Number: 122505002473\nBank Name: ICICI Bank\nBranch: Andheri Veera Desai Road\nIFSC: ICIC0001225\nUPI ID: physiocallyaccount@icici\n\nPlease share the screenshot after the transaction 🙏";
+
+function formSummary(flow) {
+  if (!flow || typeof flow !== "object") return "[Booking form submitted]";
+  const L = [];
+  if (flow.patient_name) L.push("Name: " + flow.patient_name);
+  if (flow.mode) L.push("Mode: " + flow.mode);
+  if (flow.join_from) L.push("Location: " + flow.join_from);
+  if (flow.time_pref) L.push("Preferred time: " + flow.time_pref);
+  if (flow.physio_choice) L.push("Physio: " + flow.physio_choice);
+  if (flow.condition) L.push("Concern: " + flow.condition);
+  if (flow.start_when) L.push("Start: " + flow.start_when);
+  if (flow.source) L.push("Heard via: " + flow.source);
+  return L.length ? "\u{1F4CB} Booking form submitted\n" + L.join("\n") : "[Booking form submitted]";
+}
+
+function sendImageTo(to, link, caption) {
+  waSend({
+    messaging_product: "whatsapp",
+    to: to,
+    type: "image",
+    image: { link: link, caption: caption || "" }
+  }, "qr image", () => sendTextTo(to, "Scan to pay: " + link));
+}
+
+app.post("/inbox/saved", (req, res) => {
+  const b = req.body || {};
+  if (b.pin !== INBOX_PIN) return res.status(403).json({ error: "pin" });
+  const phone = String(b.phone || "").replace(/[^0-9]/g, "");
+  if (phone.length < 11) return res.status(400).json({ error: "phone" });
+  if (b.kind === "payment") {
+    sendTextTo(phone, TXT_PAYMENT);
+    setTimeout(() => sendImageTo(phone, QR_URL, "Physiocally payment QR"), 1500);
+    setHuman(phone, 1);
+    return res.json({ ok: true });
+  }
+  return res.status(400).json({ error: "unknown kind" });
 });

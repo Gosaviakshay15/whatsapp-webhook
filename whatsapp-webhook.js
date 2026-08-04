@@ -596,6 +596,7 @@ function hydrateChats() {
   hreq.end();
 }
 function collectHistory(res) {
+  if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) { res.resume(); https.get(res.headers.location, (r2) => collectHistory(r2)); return; }
   let d = "";
   res.on("data", (c) => { d += c; });
   res.on("end", () => {
@@ -611,7 +612,7 @@ function collectHistory(res) {
       });
       chats.forEach((a) => { a.sort((x, y) => x.ts - y.ts); if (a.length > 200) a.splice(0, a.length - 200); });
       console.log("hydrated chats:", chats.size, "threads");
-    } catch (e) { console.log("hydrate parse error", e.message); }
+    } catch (e) { hydrated = false; console.log("hydrate parse error", e.message); }
   });
   res.on("error", () => { hydrated = false; });
 }
@@ -679,6 +680,7 @@ function storeMedia(phone, name, mime, buf, cb) {
 }
 
 function collectMediaResp(res, cb) {
+  if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) { res.resume(); https.get(res.headers.location, (r2) => collectMediaResp(r2, cb)); return; }
   let d = "";
   res.on("data", (c) => { d += c; });
   res.on("end", () => { try { const j = JSON.parse(d); cb(j.url || ""); } catch (e) { cb(""); } });

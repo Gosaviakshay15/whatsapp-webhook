@@ -35,15 +35,16 @@ const SHEET_KEY = "phy-enq-7xK93qQ2mR8v";
 
 const FALLBACK_TEXT = "Namaste from Physiocally! We can help with back pain, neck pain, sports injuries, post surgery recovery and more. To book a session, reply with your name, preferred mode (clinic, home visit or online) and preferred time. Our care team will confirm your slot right here on WhatsApp. You can also book at https://www.physiocally.com/book";
 
-const TXT_CLINIC = "🏥 *Consultation at our Andheri West clinic*\n\n👨‍⚕️ Dr. Akshay Gosavi: *Rs 3999*\n🩺 Senior Physiotherapist: *Rs 999*\n\nYour consultation includes a full assessment and your treatment plan.\n\n🕐 Dr. Akshay's consultation slots: *1 PM and 6 PM*\n\nTap *Book a session* in the menu and our care team will confirm your slot right here on WhatsApp ✅";
+const TXT_CLINIC = "🏥 *Consultation at our Andheri West clinic*\n\nTo get you the best results, we offer two starting points:\n\n*Option 1 — Senior Team Assessment: Rs 999*\nA detailed one on one evaluation with our senior physiotherapists, using Dr. Akshay's exact diagnostic framework to find your root cause and build your custom plan.\n🕐 Slots usually available within 24 hours\n\n*Option 2 — Premium Assessment with Dr. Akshay: Rs 3999*\nA one on one evaluation directly with Dr. Akshay.\n🕐 Slots are limited and may require a wait\n\nTap *Book a session* in the menu and our care team will confirm your slot right here on WhatsApp ✅";
 const TXT_HOME = "🏠 *Home visit consultation, anywhere in Mumbai*\n\n🩺 Senior Physiotherapist: *Rs 1499*\n\nOur physio comes to you with everything needed for assessment and treatment. Dr. Akshay personally consults at the clinic and online.\n\nTap *Book a session* in the menu and our care team will confirm your slot right here on WhatsApp ✅";
 const TXT_ASK_LOCATION = "🌍 Online consultations are available *worldwide*.\n\nWhich city and country will you be in during your session? Please also share your preferred time in *your local time* 🕐";
 const TXT_NOTED = "Noted, thank you! 🙏 Our care team will keep this in mind while confirming your slot.\n\nTap *Book a session* in the menu whenever you are ready and we will lock it in for you.";
-const TXT_ONLINE_INDIA = "💻 *Online video consultation from India*\n\n👨‍⚕️ Dr. Akshay Gosavi: *Rs 3499*\n🩺 Senior Physiotherapist: *Rs 999*\n\n🕐 Dr. Akshay's consultation slots: *1 PM and 6 PM IST*\nLocation is confirmed while scheduling.\n\nTap *Book a session* in the menu and our care team will confirm your slot right here on WhatsApp ✅";
+const TXT_ONLINE_INDIA = "💻 *Online video consultation from India*\n\nTo get you the best results, we offer two starting points:\n\n*Option 1 — Senior Team Assessment: Rs 999*\nA detailed one on one evaluation with our senior physiotherapists, using Dr. Akshay's exact diagnostic framework to find your root cause and build your custom plan.\n🕐 Slots usually available within 24 hours\n\n*Option 2 — Premium Assessment with Dr. Akshay: Rs 3499*\nA one on one evaluation directly with Dr. Akshay.\n🕐 Dr. Akshay consults at *1 PM and 6 PM IST*, slots are limited\n\nTap *Book a session* in the menu and our care team will confirm your slot right here on WhatsApp ✅";
 const TXT_INTL = "🌍 Thank you!\n\nOur care team personally handles bookings outside India. They will message you here shortly with your consultation details, charges and slots that suit your time zone 🕐";
 const TXT_PHYSIOS = "👨‍⚕️ *Dr. Akshay Gosavi, Founder of Physiocally*\nMasters in Physiotherapy (MUHS)\n10 years of clinical experience\nExpert in accurately diagnosing the root cause of pain\n\n🩺 *Our Senior Physiotherapists*\nQualified, experienced and experts in diagnosing and treating musculoskeletal pain, rated highly by our patients.\n\n⭐ *Physiocally* has delivered over *1,00,000 sessions* since 2022 with a *4.8 star* Google rating.";
 const TXT_ASK_CONDITION = "Tell me what you are dealing with, for example back pain, migraine or knee pain, and I will tell you how physiotherapy can help 💬";
 
+const TXT_FORM_ACK = "🙏 Thank you! Your details are with our care team.\n\nThey are checking physiotherapist availability and will confirm your slot right here on WhatsApp shortly 🕐";
 const TXT_UPSELL_PACKS = "💪 *Online follow up sessions*\n\n🩺 Single session: *Rs 999*\n📦 5 session pack: *Rs 4,745* (Rs 949 per session)\n📦 10 session pack: *Rs 8,990* (Rs 899 per session)\n\nSessions are scheduled as per your physio's advice, usually once a week. Reply here and our care team will set up your plan ✅";
 const TXT_UPSELL_NO = "No problem! 🙏 Whenever you are ready, just message us here. Wishing you a speedy recovery 💚";
 const COND_CTA = "\n\n📅 *Book a consultation* and our physio will assess your case and design your plan.";
@@ -118,6 +119,7 @@ app.post("/webhook", (req, res) => {
         let flow = {};
         try { flow = JSON.parse(it.nfm_reply.response_json); } catch (e) {}
         logChat(from, "in", formSummary(flow));
+        setTimeout(() => sendTextTo(from, TXT_FORM_ACK), 1200);
         if (flow.overall_rating) {
           postToSheet({ type: "feedback", phone: from, case_id: flow.case_id, physio: flow.physio, case_type: flow.case_type, overall_rating: flow.overall_rating, physio_rating: flow.physio_rating, recommend: flow.recommend, improve: flow.improve });
         } else {
@@ -362,7 +364,7 @@ app.post("/notify", (req, res) => {
     const name = b.name || "there";
     const amount = b.amount ? "Rs " + b.amount : "your payment";
     const physio = b.physio ? " with " + b.physio : "";
-    const confirmText = "Namaste " + name + "! Your payment of " + amount + " is received and your booking" + physio + " is confirmed. Our care team will share your session timing right here on WhatsApp. For any change just reply on this chat. Thank you for choosing Physiocally!";
+    const confirmText = "Namaste " + name + "! \u{1F64F}\n\n✅ Your payment of *" + amount + "* has been received and your appointment is confirmed." + (b.physio ? "\n👨‍⚕️ Physiotherapist: *" + b.physio + "*" : "") + "\n\n📄 If you have any reports, scans or prescriptions, please share them here.\n\nYour invoice is attached below.";
     waSend({ messaging_product: "whatsapp", to: phone, type: "text", text: { preview_url: false, body: confirmText } }, "send confirm", () => sendAlert("Auto confirmation could not be delivered to wa.me/" + phone + ". Please confirm the booking manually."));
     if (b.invoice_url) {
       setTimeout(() => {
@@ -519,18 +521,40 @@ main { flex:1; display:flex; min-height:0; }
 button { background:var(--grn); color:#fff; border:0; border-radius:8px; padding:0 18px; font-weight:700; cursor:pointer; }
 #togglebot { background:var(--gld); }
 #empty { flex:1; display:flex; align-items:center; justify-content:center; color:#999; }
-@media (max-width:700px){ #list{width:110px} .th .s{display:none} }
+#back { display:none; }
+@media (max-width:760px){
+  header { padding:8px 12px; font-size:15px; }
+  header small { display:none; }
+  main { position:relative; }
+  #list { width:100%; }
+  #chat { display:none; position:absolute; inset:0; background:var(--bg); }
+  body.chatopen #list { display:none; }
+  body.chatopen #chat { display:flex; }
+  #back { display:inline-block; background:var(--grn); color:#fff; border:0; padding:8px 12px; border-radius:8px; font-weight:700; }
+  #chathead { display:flex; gap:10px; align-items:center; padding:8px 10px; background:#fff; border-bottom:1px solid #ddd; }
+  #chathead .who { font-weight:700; font-size:14px; }
+  .th { padding:14px; }
+  .th .s { display:block; }
+  .m { max-width:88%; font-size:15px; }
+  #msgs { padding:12px; }
+  #bar { flex-wrap:wrap; gap:6px; padding:8px; }
+  #bar button { padding:10px 12px; font-size:13px; flex:1 1 auto; }
+  #bar textarea { flex:1 1 100%; order:-1; font-size:16px; min-height:44px; }
+}
+@media (min-width:761px){ #chathead { display:none; } }
 </style></head><body>
 <header><span>Physiocally Inbox</span><small id="hint">replies go out as +91 85911 68633</small></header>
 <main>
   <div id="list"></div>
   <div id="chat">
+    <div id="chathead"><button id="back" onclick="closeChat()">Back</button><span class="who" id="who"></span></div>
     <div id="msgs"><div id="empty">Select a chat</div></div>
     <div id="bar">
       <button id="togglebot" onclick="toggleBot()" style="display:none">Bot: on</button>
       <button onclick="quick('payment')" title="Send payment details and QR">Payment details</button>
+      <button onclick="quick('slotoffer')" title="Offer a slot before payment">Slot offer</button>
       <button onclick="quick('slot')" title="Compose a slot confirmation">Slot confirm</button>
-      <textarea id="txt" placeholder="Type a reply. Sending pauses the bot for 6 hours."></textarea>
+      <textarea id="txt" placeholder="Type a reply. Sending pauses the bot for 1 hour."></textarea>
       <button onclick="send()">Send</button>
     </div>
   </div>
@@ -556,7 +580,8 @@ function renderList(){
       '<div class="p">+' + t.phone + '</div><div class="s">' + lastMsg.replace(/</g, "&lt;") + '</div></div>';
   }).join("");
 }
-function openChat(p){ cur = p; renderList(); renderChat(); }
+function closeChat(){ document.body.classList.remove("chatopen"); }
+function openChat(p){ cur = p; document.body.classList.add("chatopen"); const w = document.getElementById("who"); if (w) w.textContent = "+" + p; renderList(); renderChat(); }
 function renderChat(){
   const t = data.threads.find(x => x.phone === cur);
   const el = document.getElementById("msgs");
@@ -570,6 +595,17 @@ function renderChat(){
 }
 async function quick(kind){
   if (!cur) { alert("Open a chat first"); return; }
+  if (kind === "slotoffer") {
+    const physio = prompt("Physio name? e.g. Dr. Akshay", "");
+    if (!physio) return;
+    const slot = prompt("Slot? e.g. Today at 6:00 PM", "");
+    if (!slot) return;
+    const fee = prompt("Consultation fee in Rs?", "999");
+    if (!fee) return;
+    document.getElementById("txt").value = "Hello! Confirming availability for your request \u{1F64F}\n\n*" + physio + "* has a slot open for you:\n\u{1F4C5} *" + slot + "*\n\u{1F4B0} Consultation fee: *Rs " + fee + "* (pre-payment required)\n\nPlease reply *Confirmed* and I will share the payment details.";
+    document.getElementById("txt").focus();
+    return;
+  }
   if (kind === "slot") {
     const physio = prompt("Physio name?", "");
     if (!physio) return;

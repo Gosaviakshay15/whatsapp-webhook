@@ -602,7 +602,7 @@ async function quick(kind){
     if (!slot) return;
     const fee = prompt("Consultation fee in Rs?", "999");
     if (!fee) return;
-    document.getElementById("txt").value = "Hello! Confirming availability for your request \u{1F64F}\n\n*" + physio + "* has a slot open for you:\n\u{1F4C5} *" + slot + "*\n\u{1F4B0} Consultation fee: *Rs " + fee + "* (pre-payment required)\n\nPlease reply *Confirmed* and I will share the payment details.";
+    document.getElementById("txt").value = "Hello! Confirming availability for your request \u{1F64F}\\n\\n*" + physio + "* has a slot open for you:\\n\u{1F4C5} *" + slot + "*\\n\u{1F4B0} Consultation fee: *Rs " + fee + "* (pre-payment required)\\n\\nPlease reply *Confirmed* and I will share the payment details.";
     document.getElementById("txt").focus();
     return;
   }

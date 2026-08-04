@@ -45,7 +45,8 @@ const TXT_PHYSIOS = "👨‍⚕️ *Dr. Akshay Gosavi, Founder of Physiocally*\n
 const TXT_ASK_CONDITION = "Tell me what you are dealing with, for example back pain, migraine or knee pain, and I will tell you how physiotherapy can help 💬";
 
 const TXT_FORM_ACK = "🙏 Thank you! Your details are with our care team.\n\nThey are checking physiotherapist availability and will confirm your slot right here on WhatsApp shortly 🕐";
-const TXT_UPSELL_PACKS = "💪 *Online follow up sessions*\n\n🩺 Single session: *Rs 999*\n📦 5 session pack: *Rs 4,745* (Rs 949 per session)\n📦 10 session pack: *Rs 8,990* (Rs 899 per session)\n\nSessions are scheduled as per your physio's advice, usually once a week. Reply here and our care team will set up your plan ✅";
+const TXT_UPSELL_PACKS = "To make your treatment more consistent, we have:\n\n📦 *5 Sessions* — Rs 949 per session\n📦 *10 Sessions* — Rs 899 per session\n\n(Advance payment required for package pricing)\n\nPackages help in faster recovery and better results.\n\nWhich one would you like to go ahead with?";
+const TXT_UPSELL_NEXT = "A single follow up session is *Rs 999*.\n\nReply here and our care team will schedule your next session at a time that suits you ✅";
 const TXT_UPSELL_NO = "No problem! 🙏 Whenever you are ready, just message us here. Wishing you a speedy recovery 💚";
 const COND_CTA = "\n\n📅 *Book a consultation* and our physio will assess your case and design your plan.";
 const CONDITIONS = [
@@ -159,8 +160,8 @@ function routeSelection(from, id) {
   if (id === "mode_clinic") return sendTextTo(from, TXT_CLINIC);
   if (id === "mode_home") return sendTextTo(from, TXT_HOME);
   if (id === "mode_online") { setState(from, "awaiting_location"); return sendTextTo(from, TXT_ASK_LOCATION); }
-  if (id === "upsell_yes") return sendTextTo(from, TXT_UPSELL_PACKS);
-  if (id === "upsell_no") return sendTextTo(from, TXT_UPSELL_NO);
+  if (id === "upsell_packs") return sendTextTo(from, TXT_UPSELL_PACKS);
+  if (id === "upsell_next") return sendTextTo(from, TXT_UPSELL_NEXT);
   sendMenu(from);
 }
 
@@ -364,7 +365,7 @@ app.post("/notify", (req, res) => {
     const name = b.name || "there";
     const amount = b.amount ? "Rs " + b.amount : "your payment";
     const physio = b.physio ? " with " + b.physio : "";
-    const confirmText = "Namaste " + name + "! \u{1F64F}\n\n✅ Your payment of *" + amount + "* has been received and your appointment is confirmed." + (b.physio ? "\n👨‍⚕️ Physiotherapist: *" + b.physio + "*" : "") + "\n\n📄 If you have any reports, scans or prescriptions, please share them here.\n\nYour invoice is attached below.";
+    const confirmText = "Hi " + name + " \u{1F64F}\n\n✅ Your payment of *" + amount + "* has been received and your appointment is confirmed." + (b.physio ? "\n👨‍⚕️ Physiotherapist: *" + b.physio + "*" : "") + "\n\n📄 If you have any reports, scans or prescriptions, please share them here.\n\nYour invoice is attached below.";
     waSend({ messaging_product: "whatsapp", to: phone, type: "text", text: { preview_url: false, body: confirmText } }, "send confirm", () => sendAlert("Auto confirmation could not be delivered to wa.me/" + phone + ". Please confirm the booking manually."));
     if (b.invoice_url) {
       setTimeout(() => {
@@ -611,7 +612,7 @@ async function quick(kind){
     if (!physio) return;
     const slot = prompt("Slot? e.g. Tomorrow 6:00 PM", "");
     if (!slot) return;
-    document.getElementById("txt").value = "Namaste! \u{1F64F} Your session is confirmed with *" + physio + "* on *" + slot + "*. Please be ready 5 minutes early. Reply here if you need to reschedule.";
+    document.getElementById("txt").value = "Your session is confirmed with *" + physio + "* on *" + slot + "*. Please be ready 5 minutes early. Reply here if you need to reschedule.";
     document.getElementById("txt").focus();
     return;
   }
@@ -759,10 +760,10 @@ function sendUpsellButtons(to, name) {
     type: "interactive",
     interactive: {
       type: "button",
-      body: { text: "Namaste " + name + "! 🙏 Hope your consultation went well.\n\nFor optimal recovery, your physiotherapist recommends regular follow up sessions. Would you like to know the charges?" },
+      body: { text: "Hi " + name + " 🙏\n\nAs per the doctor's plan, your treatment requires follow up sessions for proper recovery.\n\nConsistency is important to reduce pain completely and avoid recurrence.\n\nWould you like to continue with your next session, or explore package options?" },
       action: { buttons: [
-        { type: "reply", reply: { id: "upsell_yes", title: "Yes, tell me" } },
-        { type: "reply", reply: { id: "upsell_no", title: "Not now" } }
+        { type: "reply", reply: { id: "upsell_next", title: "Next session" } },
+        { type: "reply", reply: { id: "upsell_packs", title: "Package options" } }
       ] }
     }
   }, "upsell", () => sendAlert("Upsell message could not be delivered to wa.me/" + to + ". Please follow up manually."));
@@ -792,7 +793,7 @@ app.post("/remind", (req, res) => {
       to: phone,
       type: "template",
       template: { name: "physiocally_reminder", language: { code: "en" }, components: [{ type: "body", parameters: [{ type: "text", text: rname }, { type: "text", text: when }] }] }
-    }, "reminder", () => sendTextTo(phone, "Namaste " + rname + "! 🙏 A gentle reminder from Physiocally: you have a physiotherapy session scheduled for " + when + ". Reply here if you would like to reschedule."));
+    }, "reminder", () => sendTextTo(phone, "Hi " + rname + " 🙏 A gentle reminder from Physiocally: you have a physiotherapy session scheduled for " + when + ". Reply here if you would like to reschedule."));
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: String(e) }); }
 });

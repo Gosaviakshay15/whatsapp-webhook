@@ -138,6 +138,7 @@ app.post("/webhook", (req, res) => {
       sendMenu(from);
       return;
     }
+    if (msg.type === "image" || msg.type === "document" || msg.type === "audio" || msg.type === "video") { handleMedia(from, msg); return; }
     sendMenu(from);
   } catch (e) {
     console.error("handler error:", e);
@@ -555,7 +556,8 @@ function renderChat(){
   if (!t) { el.innerHTML = '<div id="empty">Select a chat</div>'; tb.style.display = "none"; return; }
   tb.style.display = "";
   tb.textContent = t.human ? "Bot: OFF" : "Bot: ON";
-  el.innerHTML = t.msgs.map(m => '<div class="m ' + (m.d === "in" ? "in" : "out") + '">' + m.t.replace(/</g, "&lt;") + '<small>' + fmt(m.ts) + '</small></div>').join("");
+  function md(x) { var h = String(x || "").replace(/</g, "&lt;"); return h.replace(new RegExp("https?://[^ \\n<]+", "g"), function(u) { var l = '<a href="' + u + '" target="_blank" style="color:inherit;word-break:break-all">' + u + '</a>'; if (u.indexOf("uc?export=view") !== -1) l += '<a href="' + u + '" target="_blank"><img src="' + u + '" style="max-width:220px;max-height:220px;border-radius:8px;display:block;margin-top:4px"/></a>'; return l; }); }
+  el.innerHTML = t.msgs.map(m => '<div class="m ' + (m.d === "in" ? "in" : "out") + '">' + md(m.t) + '<small>' + fmt(m.ts) + '</small></div>').join("");
   el.scrollTop = el.scrollHeight;
 }
 async function send(){
@@ -612,4 +614,77 @@ function collectHistory(res) {
     } catch (e) { console.log("hydrate parse error", e.message); }
   });
   res.on("error", () => { hydrated = false; });
+}
+
+
+// ---- PATIENT MEDIA (images/PDFs -> Drive via sheet) ----
+function handleMedia(from, msg) {
+  const media = msg.image || msg.document || msg.audio || msg.video;
+  if (!media || !media.id) return;
+  const kind = msg.type;
+  const caption = (media.caption || "").slice(0, 200);
+  const ext = kind === "image" ? ".jpg" : kind === "audio" ? ".ogg" : kind === "video" ? ".mp4" : "";
+  const fname = media.filename || (kind + "_" + Date.now() + ext);
+  https.get({ hostname: "graph.facebook.com", path: "/v20.0/" + media.id, headers: { Authorization: "Bearer " + ACCESS_TOKEN } }, (r1) => {
+    let d = "";
+    r1.on("data", (c) => { d += c; });
+    r1.on("end", () => {
+      try {
+        const info = JSON.parse(d);
+        if (!info.url) { logChat(from, "in", "[" + kind + " received but could not be fetched]"); return; }
+        downloadMedia(info.url, (buf) => {
+          if (!buf) { logChat(from, "in", "[" + kind + " received but download failed]"); mediaAlert(from, kind, caption); return; }
+          if (buf.length > 18 * 1024 * 1024) { logChat(from, "in", "[" + kind + " too large to store: " + fname + "]"); mediaAlert(from, kind, caption); return; }
+          storeMedia(from, fname, media.mime_type || "", buf, (url) => {
+            const icon = kind === "image" ? "📷" : kind === "document" ? "📎" : "🎥";
+            let txt = icon + " " + (caption ? caption + " - " : "") + fname;
+            if (url) txt += "\n" + url;
+            logChat(from, "in", txt);
+            mediaAlert(from, kind, caption);
+          });
+        });
+      } catch (e) { console.log("media info error", e.message); }
+    });
+  }).on("error", (e) => console.log("media meta error", e.message));
+}
+
+function downloadMedia(u, cb) {
+  let uo;
+  try { uo = new URL(u); } catch (e) { cb(null); return; }
+  https.get({ hostname: uo.hostname, path: uo.pathname + uo.search, headers: { Authorization: "Bearer " + ACCESS_TOKEN, "User-Agent": "node" } }, (r) => {
+    if ((r.statusCode === 301 || r.statusCode === 302) && r.headers.location) { r.resume(); downloadMedia(r.headers.location, cb); return; }
+    if (r.statusCode !== 200) { r.resume(); cb(null); return; }
+    const parts = [];
+    r.on("data", (c) => parts.push(c));
+    r.on("end", () => cb(Buffer.concat(parts)));
+    r.on("error", () => cb(null));
+  }).on("error", () => cb(null));
+}
+
+function storeMedia(phone, name, mime, buf, cb) {
+  const body = JSON.stringify({ key: SHEET_KEY, type: "media", phone: phone, name: name, mime: mime, data: buf.toString("base64") });
+  let u;
+  try { u = new URL(SHEET_URL); } catch (e) { cb(""); return; }
+  const req = https.request({ hostname: u.hostname, path: u.pathname + u.search, method: "POST", headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) } }, (res) => {
+    if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
+      res.resume();
+      https.get(res.headers.location, (r2) => collectMediaResp(r2, cb));
+      return;
+    }
+    collectMediaResp(res, cb);
+  });
+  req.on("error", (e) => { console.log("media store error", e.message); cb(""); });
+  req.write(body);
+  req.end();
+}
+
+function collectMediaResp(res, cb) {
+  let d = "";
+  res.on("data", (c) => { d += c; });
+  res.on("end", () => { try { const j = JSON.parse(d); cb(j.url || ""); } catch (e) { cb(""); } });
+  res.on("error", () => cb(""));
+}
+
+function mediaAlert(from, kind, caption) {
+  sendAlert("Patient sent a file (" + kind + ") from wa.me/" + from + (caption ? " - " + caption : "") + ". Open the clinic inbox to view it.");
 }

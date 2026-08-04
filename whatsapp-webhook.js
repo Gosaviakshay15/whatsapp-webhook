@@ -44,6 +44,8 @@ const TXT_INTL = "🌍 Thank you!\n\nOur care team personally handles bookings o
 const TXT_PHYSIOS = "👨‍⚕️ *Dr. Akshay Gosavi, Founder of Physiocally*\nMasters in Physiotherapy (MUHS)\n10 years of clinical experience\nExpert in accurately diagnosing the root cause of pain\n\n🩺 *Our Senior Physiotherapists*\nQualified, experienced and experts in diagnosing and treating musculoskeletal pain, rated highly by our patients.\n\n⭐ *Physiocally* has delivered over *1,00,000 sessions* since 2022 with a *4.8 star* Google rating.";
 const TXT_ASK_CONDITION = "Tell me what you are dealing with, for example back pain, migraine or knee pain, and I will tell you how physiotherapy can help 💬";
 
+const TXT_UPSELL_PACKS = "💪 *Online follow up sessions*\n\n🩺 Single session: *Rs 999*\n📦 5 session pack: *Rs 4,745* (Rs 949 per session)\n📦 10 session pack: *Rs 8,990* (Rs 899 per session)\n\nSessions are scheduled as per your physio's advice, usually once a week. Reply here and our care team will set up your plan ✅";
+const TXT_UPSELL_NO = "No problem! 🙏 Whenever you are ready, just message us here. Wishing you a speedy recovery 💚";
 const COND_CTA = "\n\n📅 *Book a consultation* and our physio will assess your case and design your plan.";
 const CONDITIONS = [
   { k: ["migraine", "headache", "head ache"], t: "Many headaches and migraines have a neck related trigger. Physiotherapy relieves muscle tension and stiffness in the neck and shoulders and can reduce how often and how strongly they occur." },
@@ -155,6 +157,8 @@ function routeSelection(from, id) {
   if (id === "mode_clinic") return sendTextTo(from, TXT_CLINIC);
   if (id === "mode_home") return sendTextTo(from, TXT_HOME);
   if (id === "mode_online") { setState(from, "awaiting_location"); return sendTextTo(from, TXT_ASK_LOCATION); }
+  if (id === "upsell_yes") return sendTextTo(from, TXT_UPSELL_PACKS);
+  if (id === "upsell_no") return sendTextTo(from, TXT_UPSELL_NO);
   sendMenu(from);
 }
 
@@ -692,3 +696,60 @@ function collectMediaResp(res, cb) {
 function mediaAlert(from, kind, caption) {
   sendAlert("Patient sent a file (" + kind + ") from wa.me/" + from + (caption ? " - " + caption : "") + ". Open the clinic inbox to view it.");
 }
+
+
+// ---- UPSELL + REMINDERS (triggered from the sheet) ----
+function sendUpsellButtons(to, name) {
+  waSend({
+    messaging_product: "whatsapp",
+    to,
+    type: "interactive",
+    interactive: {
+      type: "button",
+      body: { text: "Namaste " + name + "! 🙏 Hope your consultation went well.\n\nFor optimal recovery, your physiotherapist recommends regular follow up sessions. Would you like to know the charges?" },
+      action: { buttons: [
+        { type: "reply", reply: { id: "upsell_yes", title: "Yes, tell me" } },
+        { type: "reply", reply: { id: "upsell_no", title: "Not now" } }
+      ] }
+    }
+  }, "upsell", () => sendAlert("Upsell message could not be delivered to wa.me/" + to + ". Please follow up manually."));
+}
+
+app.post("/upsell", (req, res) => {
+  try {
+    const b = req.body || {};
+    if (b.key !== SHEET_KEY) return res.status(403).json({ error: "forbidden" });
+    const phone = String(b.phone || "").replace(/[^0-9]/g, "").replace(/^(\d{10})$/, "91$1");
+    if (phone.length < 11) return res.status(400).json({ error: "valid phone required" });
+    sendUpsellButtons(phone, b.name || "there");
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: String(e) }); }
+});
+
+app.post("/remind", (req, res) => {
+  try {
+    const b = req.body || {};
+    if (b.key !== SHEET_KEY) return res.status(403).json({ error: "forbidden" });
+    const phone = String(b.phone || "").replace(/[^0-9]/g, "").replace(/^(\d{10})$/, "91$1");
+    if (phone.length < 11) return res.status(400).json({ error: "valid phone required" });
+    const rname = b.name || "there";
+    const when = b.when || "today";
+    waSend({
+      messaging_product: "whatsapp",
+      to: phone,
+      type: "template",
+      template: { name: "physiocally_reminder", language: { code: "en" }, components: [{ type: "body", parameters: [{ type: "text", text: rname }, { type: "text", text: when }] }] }
+    }, "reminder", () => sendTextTo(phone, "Namaste " + rname + "! 🙏 A gentle reminder from Physiocally: you have a physiotherapy session scheduled for " + when + ". Reply here if you would like to reschedule."));
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: String(e) }); }
+});
+
+app.post("/alert", (req, res) => {
+  try {
+    const b = req.body || {};
+    if (b.key !== SHEET_KEY) return res.status(403).json({ error: "forbidden" });
+    if (!b.text) return res.status(400).json({ error: "text required" });
+    sendAlert(String(b.text).slice(0, 900));
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: String(e) }); }
+});

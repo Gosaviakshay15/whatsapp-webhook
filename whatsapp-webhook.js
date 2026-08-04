@@ -120,6 +120,8 @@ app.post("/webhook", (req, res) => {
           postToSheet({ type: "feedback", phone: from, case_id: flow.case_id, physio: flow.physio, case_type: flow.case_type, overall_rating: flow.overall_rating, physio_rating: flow.physio_rating, recommend: flow.recommend, improve: flow.improve });
         } else {
           postToSheet({ phone: from, name: flow.patient_name, mode: flow.mode, join_from: flow.join_from, time_pref: flow.time_pref, physio_choice: flow.physio_choice, condition: flow.condition, start_when: flow.start_when, source: flow.source });
+          const jf = String(flow.join_from || "").toLowerCase();
+          if (jf.indexOf("other") !== -1 || jf.indexOf("country") !== -1) sendAlert("International booking form from wa.me/" + from + (flow.patient_name ? " - " + flow.patient_name : "") + (flow.time_pref ? " - prefers " + flow.time_pref : "") + ". Please handle this booking personally.");
         }
         return;
       }

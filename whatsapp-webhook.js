@@ -111,6 +111,7 @@ app.post("/webhook", (req, res) => {
         sendText(st.recipient_id);
       }
     }
+    try { const pn = value && value.contacts && value.contacts[0] && value.contacts[0].profile && value.contacts[0].profile.name; const wa = value && value.contacts && value.contacts[0] && value.contacts[0].wa_id; if (pn && wa) waNames.set(String(wa), String(pn).slice(0, 40)); } catch (e) {}
     const msg = value?.messages?.[0];
     if (!msg) return;
     if (seen.has(msg.id)) return;
@@ -508,7 +509,8 @@ app.get("/inbox/data", (req, res) => {
   if (!hydrated && chats.size === 0) hydrateChats();
   const threads = [];
   chats.forEach((msgs, phone) => {
-    threads.push({ phone: phone, human: isHuman(phone), last: msgs.length ? msgs[msgs.length - 1].ts : 0, msgs: msgs });
+    const w = whoIs(phone);
+    threads.push({ phone: phone, name: w.name, country: w.country, human: isHuman(phone), last: msgs.length ? msgs[msgs.length - 1].ts : 0, msgs: msgs });
   });
   threads.sort((a, b) => b.last - a.last);
   res.json({ threads: threads });
@@ -584,7 +586,7 @@ button { background:var(--grn); color:#fff; border:0; border-radius:8px; padding
 }
 @media (min-width:761px){ #chathead { display:none; } }
 </style></head><body>
-<header><span>Physiocally Inbox</span><small id="hint">replies go out as +91 85911 68633</small></header>
+<header><span id="hdr">Physiocally Inbox</span><small id="hint">replies go out as +91 85911 68633</small></header>
 <main>
   <div id="list"></div>
   <div id="chat">
@@ -618,11 +620,11 @@ function renderList(){
     const lastMsg = t.msgs.length ? t.msgs[t.msgs.length-1].t : "";
     return '<div class="th ' + (cur === t.phone ? "on" : "") + '" onclick="openChat(\\'' + t.phone + '\\')">' +
       '<span class="b ' + (t.human ? "hum" : "bot") + '">' + (t.human ? "HUMAN" : "BOT") + '</span>' +
-      '<div class="p">+' + t.phone + '</div><div class="s">' + lastMsg.replace(/</g, "&lt;") + '</div></div>';
+      '<div class="p">' + (t.name ? t.name.replace(/</g, "&lt;") : "+" + t.phone) + '</div>' + '<div class="s" style="color:#7a7a7a">+' + t.phone + (t.country && t.country !== "India" ? ' \u00b7 ' + t.country : '') + '</div><div class="s">' + lastMsg.replace(/</g, "&lt;") + '</div></div>';
   }).join("");
 }
 function closeChat(){ document.body.classList.remove("chatopen"); }
-function openChat(p){ cur = p; document.body.classList.add("chatopen"); const w = document.getElementById("who"); if (w) w.textContent = "+" + p; renderList(); renderChat(); }
+function openChat(p){ cur = p; document.body.classList.add("chatopen"); const w = document.getElementById("who"); const th = (data.threads || []).find(x => x.phone === p); if (w) w.textContent = (th && th.name ? th.name + "  ·  " : "") + "+" + p + (th && th.country && th.country !== "India" ? "  ·  " + th.country : ""); renderList(); renderChat(); }
 function renderChat(){
   const t = data.threads.find(x => x.phone === cur);
   const el = document.getElementById("msgs");
@@ -967,4 +969,19 @@ function checkIntent(from, body) {
   if (BOOK_WORDS.some((w) => low.includes(w))) { sendFlow(from); return true; }
   if (MENU_WORDS.some((w) => low.includes(w))) { sendMenu(from); return true; }
   return false;
+}
+
+
+// ---- WHO IS THIS PATIENT ----
+const waNames = new Map();
+const CC = [["971","UAE"],["966","Saudi Arabia"],["974","Qatar"],["965","Kuwait"],["968","Oman"],["973","Bahrain"],["977","Nepal"],["880","Bangladesh"],["94","Sri Lanka"],["92","Pakistan"],["44","UK"],["61","Australia"],["64","New Zealand"],["65","Singapore"],["60","Malaysia"],["66","Thailand"],["62","Indonesia"],["63","Philippines"],["81","Japan"],["82","South Korea"],["86","China"],["852","Hong Kong"],["49","Germany"],["33","France"],["39","Italy"],["34","Spain"],["31","Netherlands"],["32","Belgium"],["41","Switzerland"],["43","Austria"],["46","Sweden"],["47","Norway"],["45","Denmark"],["358","Finland"],["351","Portugal"],["353","Ireland"],["48","Poland"],["7","Russia"],["90","Turkey"],["27","South Africa"],["254","Kenya"],["255","Tanzania"],["256","Uganda"],["234","Nigeria"],["20","Egypt"],["972","Israel"],["55","Brazil"],["52","Mexico"],["54","Argentina"],["1","USA or Canada"]];
+function countryOf(phone) {
+  const p = String(phone || "");
+  if (p.indexOf("91") === 0 && p.length === 12) return "India";
+  for (let i = 0; i < CC.length; i++) if (p.indexOf(CC[i][0]) === 0) return CC[i][1];
+  return "International";
+}
+function whoIs(phone) {
+  const nm = patientNames.get(phone) || waNames.get(phone) || "";
+  return { name: nm, country: countryOf(phone) };
 }

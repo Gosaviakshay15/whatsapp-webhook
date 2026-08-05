@@ -38,16 +38,16 @@ const FALLBACK_TEXT = "Namaste from Physiocally! We can help with back pain, nec
 const TXT_CLINIC = "🏥 *Consultation at our Andheri West clinic*\n\nTo get you the best results, we offer two starting points:\n\n*Option 1 — Senior Team Assessment: Rs 999*\nA detailed one on one evaluation with our senior physiotherapists, using Dr. Akshay's exact diagnostic framework to find your root cause and build your custom plan.\n🕐 Slots usually available within 24 hours\n\n*Option 2 — Premium Assessment with Dr. Akshay: Rs 3999*\nA one on one evaluation directly with Dr. Akshay.\n🕐 Slots are limited and may require a wait\n\nTap *Book a session* below and our care team will confirm your slot right here on WhatsApp ✅";
 const TXT_HOME = "🏠 *Home visit consultation, anywhere in Mumbai*\n\n🩺 Senior Physiotherapist: *Rs 1499*\nSession charges reduce when a longer treatment plan is needed.\n\nOur physio comes to you with everything needed for assessment and treatment. Dr. Akshay personally consults at the clinic and online.\n\nTap *Book a session* below and our care team will confirm your slot right here on WhatsApp ✅";
 const TXT_ASK_LOCATION = "🌍 Online consultations are available *worldwide*.\n\nSo we can schedule correctly across time zones, which city and country will you be in during your session, and what time suits you *in your local time*? 🕐";
-const TXT_NOTED = "Noted, thank you! 🙏 Our care team will keep this in mind while confirming your slot.\n\nTap *Book a session* below whenever you are ready and we will lock it in for you.";
+const TXT_NOTED = "Noted, thank you! Our care team will keep this in mind while confirming your slot.\n\nTap *Book a session* below whenever you are ready and we will lock it in for you.";
 const TXT_ONLINE_INDIA = "💻 *Online video consultation from India*\n\nTo get you the best results, we offer two starting points:\n\n*Option 1 — Senior Team Assessment: Rs 999*\nA detailed one on one evaluation with our senior physiotherapists, using Dr. Akshay's exact diagnostic framework to find your root cause and build your custom plan.\n🕐 Slots usually available within 24 hours\n\n*Option 2 — Premium Assessment with Dr. Akshay: Rs 3499*\nA one on one evaluation directly with Dr. Akshay.\n🕐 Dr. Akshay consults at *1 PM and 6 PM IST*, slots are limited\n\n📱 Sessions run on a video call link we share before your slot, and last *40 to 60 minutes*.\n\nTap *Book a session* below and our care team will confirm your slot right here on WhatsApp ✅";
 const TXT_INTL = "🌍 Thank you!\n\nOur care team personally handles bookings outside India. They will message you here with your consultation details, charges and slots that suit your time zone.\n\n🕐 Our team is available *9 AM to 9 PM IST*";
 const TXT_PHYSIOS = "👨‍⚕️ *Dr. Akshay Gosavi, Founder of Physiocally*\nMasters in Physiotherapy (MUHS)\n10 years of clinical experience\nExpert in accurately diagnosing the root cause of pain\n\n🩺 *Our Senior Physiotherapists*\nQualified, experienced and experts in diagnosing and treating musculoskeletal pain, rated highly by our patients.\n\n⭐ *Physiocally* has delivered over *1,00,000 sessions* since 2022 with a *4.8 star* Google rating.";
 const TXT_ASK_CONDITION = "Tell me what you are dealing with, for example back pain, migraine or knee pain, and I will tell you how physiotherapy can help 💬";
 
-const TXT_FORM_ACK = "🙏 Thank you! Your details are with our care team.\n\nOur team will check availability and confirm your slot right here on WhatsApp shortly 🕐";
+const TXT_FORM_ACK = "Thank you! Your details are with our care team.\n\nOur team will check availability and confirm your slot right here on WhatsApp shortly 🕐";
 const TXT_UPSELL_PACKS = "To make your treatment more consistent, we have:\n\n📦 *5 Sessions* — Rs 949 per session\n📦 *10 Sessions* — Rs 899 per session\n\n(Advance payment required for package pricing)\n\nPackages help in faster recovery and better results.\n\nWhich one would you like to go ahead with?";
 const TXT_UPSELL_NEXT = "A single follow up session is *Rs 999*.\n\nReply here and our care team will schedule your next session at a time that suits you ✅";
-const TXT_UPSELL_NO = "No problem! 🙏 Whenever you are ready, just message us here. Wishing you a speedy recovery 💚";
+const TXT_UPSELL_NO = "No problem! Whenever you are ready, just message us here. Wishing you a speedy recovery 💚";
 const COND_CTA = "\n\n📅 *Book a consultation* and our physio will assess your case and design your plan.";
 const CONDITIONS = [
   { k: ["vertigo", "dizzy", "dizziness", "giddiness", "bppv", "balance"], t: "Vertigo and giddiness often come from the inner ear or the neck. Our physiotherapists assess the cause and use proven repositioning techniques and balance retraining, and most patients improve quickly once the right cause is identified." },
@@ -193,9 +193,9 @@ function handleLocation(from, body) {
 const RED_FLAGS = ["bladder", "urine", "incontinen", "saddle numb", "chest pain", "breathless", "cannot move", "can not move", "can't move", "unconscious", "fainted", "accident", "fracture", "broken bone", "fell down", "unable to stand", "cannot stand", "cannot walk", "can't walk"];
 const CALLBACK_WORDS = ["call me", "callback", "call back", "phone me", "talk to someone", "speak to someone", "is anyone there", "real person", "human", "insurance", "cashless", "mediclaim", "reimburse", "gst", "corporate", "employees", "hr team", "tie up", "tie-up"];
 const JOB_WORDS = ["vacancy", "job", "hiring", "career", "internship", "resume", "cv ", "apply for"];
-const TXT_URGENT = "\u{1F64F} Thank you for sharing this.\n\nWhat you have described needs to be looked at urgently. Our care team will call you shortly to guide you.";
-const TXT_CALLBACK = "\u{1F64F} Our care team will call you shortly on this number.\n\nYou can also reach the clinic directly on *7304181920* (9 AM to 9 PM).";
-const TXT_JOBS = "\u{1F64F} Thank you for your interest in working with Physiocally.\n\nPlease send your CV on WhatsApp to *7304181920* and our team will get back to you.";
+const TXT_URGENT = "Thank you for sharing this.\n\nWhat you have described needs to be looked at urgently. Our care team will call you shortly to guide you.";
+const TXT_CALLBACK = "Our care team will call you shortly on this number.\n\nYou can also reach the clinic directly on *7304181920* (9 AM to 9 PM).";
+const TXT_JOBS = "Thank you for your interest in working with Physiocally.\n\nPlease send your CV on WhatsApp to *7304181920* and our team will get back to you.";
 
 function checkSpecial(from, body) {
   const low = String(body || "").toLowerCase();
@@ -265,7 +265,7 @@ function sendAlert(text) {
       name: "physiocally_team_alert",
       language: { code: "en" },
       components: [
-        { type: "body", parameters: [{ type: "text", text: text }] },
+        { type: "body", parameters: [{ type: "text", text: String(text).replace(/[\r\n]+/g, " ").slice(0, 900) }] },
       ],
     },
   }, "send alert", () => sendTextTo(FDO_ALERT, text));
@@ -406,7 +406,7 @@ app.post("/notify", (req, res) => {
     const name = b.name || "there";
     const amount = b.amount ? "Rs " + b.amount : "your payment";
     const physio = b.physio ? " with " + b.physio : "";
-    const confirmText = "Hi " + name + " \u{1F64F}\n\n✅ Your payment of *" + amount + "* has been received and your appointment is confirmed." + (b.physio ? "\n👨‍⚕️ Physiotherapist: *" + b.physio + "*" : "") + "\n\n📄 If you have any reports, scans or prescriptions, please share them here.\n\nYour invoice is attached below.";
+    const confirmText = "Hi " + name + "\n\n✅ Your payment of *" + amount + "* has been received and your appointment is confirmed." + (b.physio ? "\n👨‍⚕️ Physiotherapist: *" + b.physio + "*" : "") + "\n\n📄 If you have any reports, scans or prescriptions, please share them here.\n\nYour invoice is attached below.";
     waSend({ messaging_product: "whatsapp", to: phone, type: "text", text: { preview_url: false, body: confirmText } }, "send confirm", () => sendAlert("Auto confirmation could not be delivered to wa.me/" + phone + ". Please confirm the booking manually."));
     if (b.invoice_url) {
       setTimeout(() => {
@@ -645,7 +645,7 @@ async function quick(kind){
     if (!slot) return;
     const fee = prompt("Consultation fee in Rs?", "999");
     if (!fee) return;
-    document.getElementById("txt").value = "Hello! Confirming availability for your request \u{1F64F}\\n\\n*" + physio + "* has a slot open for you:\\n\u{1F4C5} *" + slot + "*\\n\u{1F4B0} Consultation fee: *Rs " + fee + "* (pre-payment required)\\n\\nPlease reply *Confirmed* and I will share the payment details.";
+    document.getElementById("txt").value = "Hello! Confirming availability for your request\\n\\n*" + physio + "* has a slot open for you:\\n\u{1F4C5} *" + slot + "*\\n\u{1F4B0} Consultation fee: *Rs " + fee + "* (pre-payment required)\\n\\nPlease reply *Confirmed* and I will share the payment details.";
     document.getElementById("txt").focus();
     return;
   }
@@ -721,6 +721,14 @@ function collectHistory(res) {
 
 
 // ---- PATIENT MEDIA (images/PDFs -> Drive via sheet) ----
+function storeMediaRetry(phone, name, mime, buf, cb) {
+  storeMedia(phone, name, mime, buf, (u) => {
+    if (u) return cb(u);
+    console.log("media store returned empty url, retrying once");
+    setTimeout(() => storeMedia(phone, name, mime, buf, (u2) => cb(u2 || "")), 2500);
+  });
+}
+
 function handleMedia(from, msg) {
   const media = msg.image || msg.document || msg.audio || msg.video;
   if (!media || !media.id) return;
@@ -738,7 +746,7 @@ function handleMedia(from, msg) {
         downloadMedia(info.url, (buf) => {
           if (!buf) { logChat(from, "in", "[" + kind + " received but download failed]"); mediaAlert(from, kind, caption); return; }
           if (buf.length > 18 * 1024 * 1024) { logChat(from, "in", "[" + kind + " too large to store: " + fname + "]"); mediaAlert(from, kind, caption); return; }
-          storeMedia(from, fname, media.mime_type || "", buf, (url) => {
+          storeMediaRetry(from, fname, media.mime_type || "", buf, (url) => {
             const icon = kind === "image" ? "📷" : kind === "document" ? "📎" : "🎥";
             let txt = icon + " " + (caption ? caption + " - " : "") + fname;
             if (url) txt += "\n" + url;
@@ -802,7 +810,7 @@ function sendUpsellButtons(to, name) {
     type: "interactive",
     interactive: {
       type: "button",
-      body: { text: "Hi " + name + " 🙏\n\nAs per the doctor's plan, your treatment requires follow up sessions for proper recovery.\n\nConsistency is important to reduce pain completely and avoid recurrence.\n\nWould you like to continue with your next session, or explore package options?" },
+      body: { text: "Hi " + name + "!\n\nAs per the doctor's plan, your treatment requires follow up sessions for proper recovery.\n\nConsistency is important to reduce pain completely and avoid recurrence.\n\nWould you like to continue with your next session, or explore package options?" },
       action: { buttons: [
         { type: "reply", reply: { id: "upsell_next", title: "Next session" } },
         { type: "reply", reply: { id: "upsell_packs", title: "Package options" } }
@@ -835,7 +843,7 @@ app.post("/remind", (req, res) => {
       to: phone,
       type: "template",
       template: { name: "physiocally_reminder", language: { code: "en" }, components: [{ type: "body", parameters: [{ type: "text", text: rname }, { type: "text", text: when }] }] }
-    }, "reminder", () => sendTextTo(phone, "Hi " + rname + " 🙏 A gentle reminder from Physiocally: you have a physiotherapy session scheduled for " + when + ". Reply here if you would like to reschedule, or if you have any concerns after your last session."));
+    }, "reminder", () => sendTextTo(phone, "Hi " + rname + ", a gentle reminder from Physiocally: you have a physiotherapy session scheduled for " + when + ". Reply here if you would like to reschedule, or if you have any concerns after your last session."));
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: String(e) }); }
 });
@@ -853,7 +861,7 @@ app.post("/alert", (req, res) => {
 
 // ---- SAVED REPLIES + FORM SUMMARY ----
 const QR_URL = "https://drive.google.com/uc?export=view&id=1sEzHDSKGemgfQ9CwKJyi507X-N80GiV8";
-const TXT_PAYMENT = "*Payment details*\n\nAccount Name: Physiocally\nAccount Number: 122505002473\nBank Name: ICICI Bank\nBranch: Andheri Veera Desai Road\nIFSC: ICIC0001225\nUPI ID: physiocallyaccount@icici\n\nPlease share the screenshot after the transaction 🙏\n\n📍 *Physiocally*, Andheri Veera Desai Road, Mumbai\nhttps://www.physiocally.com";
+const TXT_PAYMENT = "*Payment details*\n\nAccount Name: Physiocally\nAccount Number: 122505002473\nBank Name: ICICI Bank\nBranch: Andheri Veera Desai Road\nIFSC: ICIC0001225\nUPI ID: physiocallyaccount@icici\n\nPlease share the screenshot after the transaction\n\n📍 *Physiocally*, Andheri Veera Desai Road, Mumbai\nhttps://www.physiocally.com";
 
 function formSummary(flow) {
   if (!flow || typeof flow !== "object") return "[Booking form submitted]";
@@ -895,6 +903,7 @@ app.post("/inbox/saved", (req, res) => {
 
 // ---- MEDIA CLASSIFICATION (patient tags it, FDO gets a clear alert) ----
 const pendingMedia = new Map();
+const lastMedia = new Map();
 const patientNames = new Map();
 
 function nameFor(phone) {
@@ -904,13 +913,14 @@ function nameFor(phone) {
 
 function askMediaType(from, fname, url, kind) {
   pendingMedia.set(from, { fname: fname, url: url, kind: kind, at: Date.now() });
+  lastMedia.set(from, { fname: fname, url: url, kind: kind, at: Date.now() });
   waSend({
     messaging_product: "whatsapp",
     to: from,
     type: "interactive",
     interactive: {
       type: "button",
-      body: { text: "Thank you! \u{1F64F} So we can file this correctly, what have you shared?" },
+      body: { text: "Thank you! So we can file this correctly, what have you shared?" },
       action: { buttons: [
         { type: "reply", reply: { id: "media_pay", title: "Payment screenshot" } },
         { type: "reply", reply: { id: "media_report", title: "Medical report" } },
@@ -922,19 +932,19 @@ function askMediaType(from, fname, url, kind) {
 }
 
 function mediaAlertNow(from, label) {
-  const p = pendingMedia.get(from);
+  const p = pendingMedia.get(from) || lastMedia.get(from);
   pendingMedia.delete(from);
   const who = nameFor(from);
   const tag = label || "File";
-  const link = p && p.url ? "\nOpen: " + p.url : "";
+  const link = p && p.url ? " Open: " + p.url : " Please open the Physiocally inbox to view this file.";
   const fn = p && p.fname ? " (" + p.fname + ")" : "";
   sendAlert(tag + " from " + who + ", wa.me/" + from + fn + "." + link);
 }
 
 function handleMediaChoice(from, id) {
-  if (id === "media_pay") { mediaAlertNow(from, "\u{1F4B0} Payment screenshot"); return sendTextTo(from, "\u{1F64F} Thank you! Our care team will verify your payment and confirm shortly."); }
-  if (id === "media_report") { mediaAlertNow(from, "\u{1F4C4} Medical report"); return sendTextTo(from, "\u{1F64F} Thank you! Your report is with our team and will be shared with your physiotherapist."); }
-  if (id === "media_other") { mediaAlertNow(from, "\u{1F4CE} File"); return sendTextTo(from, "\u{1F64F} Thank you! Our care team will look at this and reply here."); }
+  if (id === "media_pay") { mediaAlertNow(from, "\u{1F4B0} Payment screenshot"); return sendTextTo(from, "Thank you! Our care team will verify your payment and confirm shortly."); }
+  if (id === "media_report") { mediaAlertNow(from, "\u{1F4C4} Medical report"); return sendTextTo(from, "Thank you! Your report is with our team and will be shared with your physiotherapist."); }
+  if (id === "media_other") { mediaAlertNow(from, "\u{1F4CE} File"); return sendTextTo(from, "Thank you! Our care team will look at this and reply here."); }
   return false;
 }
 

@@ -160,18 +160,33 @@ app.post("/webhook", (req, res) => {
       if (st === "awaiting_location") { state.delete(from); handleLocation(from, body); return; }
       if (st === "awaiting_condition") { state.delete(from); handleCondition(from, body); return; }
       if (st === "post_location") { state.delete(from); if (checkIntent(from, body)) return; sendActions(from, TXT_NOTED, ["book", "menu"]); return; }
-      if (checkIntent(from, body)) return;
-      sendMenu(from);
+      if (checkIntent(from, body)) { menuLoop.delete(from); return; }
+      menuOrHuman(from, body);
       return;
     }
     if (msg.type === "image" || msg.type === "document" || msg.type === "audio" || msg.type === "video") { handleMedia(from, msg); return; }
-    sendMenu(from);
+    menuOrHuman(from, "");
   } catch (e) {
     console.error("handler error:", e);
   }
 });
 
+const menuLoop = new Map();
+function menuOrHuman(from, body) {
+  const n = (menuLoop.get(from) || 0) + 1;
+  menuLoop.set(from, n);
+  if (n >= 2) {
+    menuLoop.delete(from);
+    sendTextTo(from, "Let me get a person to help you with this. Our care team will reply here shortly.");
+    sendAlert("Bot could not understand " + nameFor(from) + ", wa.me/" + from + ". They said: " + String(body || "a message the bot cannot read").slice(0, 140) + ". Please reply on the clinic chat.");
+    setHuman(from, 1);
+    return;
+  }
+  sendMenu(from);
+}
+
 function routeSelection(from, id) {
+  menuLoop.delete(from);
   if (id === "menu_charges") return sendModeButtons(from);
   if (id === "menu_book") return sendFlow(from);
   if (id === "menu_physios") return sendActions(from, TXT_PHYSIOS, ["book", "menu"]);

@@ -1,7 +1,7 @@
 const express = require("express");
 const https = require("https");
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "30mb" }));
 
 const {
   VERIFY_TOKEN,
@@ -482,7 +482,8 @@ function chatLogOut(payload) {
     try { tp = payload.template.components[0].parameters.map((p) => p.text).join(" "); } catch (e) {}
     txt = tp ? "[Alert] " + tp : "[Template: " + payload.template.name + "]";
   }
-  else if (payload.type === "document") txt = "[Document: " + (payload.document.filename || "file") + "]";
+  else if (payload.type === "document") txt = "[Sent file: " + (payload.document.filename || "file") + "] " + (payload.document.caption || "");
+  else if (payload.type === "image") txt = "[Sent image] " + ((payload.image && payload.image.caption) || "");
   else txt = "[" + payload.type + "]";
   let a = chats.get(to);
   if (!a) { a = []; chats.set(to, a); }
@@ -601,6 +602,9 @@ button { background:var(--grn); color:#fff; border:0; border-radius:8px; padding
       <button onclick="quick('payment')" title="Send payment details and QR">Payment details</button>
       <button onclick="quick('slotoffer')" title="Offer a slot before payment">Slot offer</button>
       <button onclick="quick('slot')" title="Compose a slot confirmation">Slot confirm</button>
+      <button onclick="pickFile()" title="Send a prescription, report or invoice to this patient">Send file</button>
+      <button onclick="sendUpsell()" title="Send the follow up offer">Follow up offer</button>
+      <input type="file" id="fileinp" style="display:none" onchange="doFile()">
       <textarea id="txt" placeholder="Type a reply. Sending pauses the bot for 1 hour."></textarea>
       <button onclick="send()">Send</button>
     </div>
@@ -681,6 +685,40 @@ async function toggleBot(){
 }
 document.getElementById("txt").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });
 load(); setInterval(load, 8000);
+function pickFile(){
+  if (!cur) { alert("Open a chat first"); return; }
+  document.getElementById("fileinp").click();
+}
+function doFile(){
+  const el = document.getElementById("fileinp");
+  const f = el.files[0];
+  if (!f) return;
+  if (f.size > 15 * 1024 * 1024) { alert("That file is too large. Please keep it under 15 MB."); el.value = ""; return; }
+  const cap = prompt("Message to send with this file", "Here is your prescription from today's session. Please follow it as advised and message us here if anything is unclear.");
+  if (cap === null) { el.value = ""; return; }
+  const rd = new FileReader();
+  rd.onload = function(){
+    const b64 = String(rd.result).split(",")[1];
+    fetch("/inbox/file", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: pin, phone: cur, name: f.name, mime: f.type || "application/pdf", data: b64, caption: cap }) })
+      .then(function(r){ return r.json().then(function(j){ return { s: r.status, j: j }; }); })
+      .then(function(o){
+        el.value = "";
+        if (o.s === 409) { alert("This patient last messaged " + o.j.hours + " hours ago, so WhatsApp will not deliver a file right now. Ask them to send any message here first, then try again."); return; }
+        if (!o.j.ok) { alert("Could not send: " + (o.j.error || "error")); return; }
+        setTimeout(load, 800);
+        if (confirm("File sent. Send the follow up offer now?")) sendUpsell();
+      })
+      .catch(function(){ el.value = ""; alert("Could not send the file. Please check your connection and try again."); });
+  };
+  rd.readAsDataURL(f);
+}
+function sendUpsell(){
+  if (!cur) { alert("Open a chat first"); return; }
+  if (!confirm("Send the follow up offer to this patient?")) return;
+  fetch("/inbox/upsell", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: pin, phone: cur }) })
+    .then(function(r){ return r.json(); })
+    .then(function(j){ if (j.ok) setTimeout(load, 800); else alert("Could not send: " + (j.error || "error")); });
+}
 </script></body></html>`;
 
 // ---- CHAT HISTORY REHYDRATION (survives free tier restarts) ----
@@ -889,6 +927,84 @@ function sendImageTo(to, link, caption) {
     image: { link: link, caption: caption || "" }
   }, "qr image", () => sendTextTo(to, "Scan to pay: " + link));
 }
+
+// ---- SEND A FILE TO THE PATIENT (prescription, report, invoice) ----
+function waUploadMedia(buf, mime, fname, cb) {
+  const boundary = "----physiocally" + Date.now();
+  const head = Buffer.from(
+    "--" + boundary + "\r\nContent-Disposition: form-data; name=\"messaging_product\"\r\n\r\nwhatsapp\r\n" +
+    "--" + boundary + "\r\nContent-Disposition: form-data; name=\"type\"\r\n\r\n" + mime + "\r\n" +
+    "--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"" + fname + "\"\r\nContent-Type: " + mime + "\r\n\r\n"
+  );
+  const tail = Buffer.from("\r\n--" + boundary + "--\r\n");
+  const body = Buffer.concat([head, buf, tail]);
+  const req = https.request({
+    hostname: "graph.facebook.com",
+    path: "/v20.0/" + PHONE_NUMBER_ID + "/media",
+    method: "POST",
+    headers: { Authorization: "Bearer " + ACCESS_TOKEN, "Content-Type": "multipart/form-data; boundary=" + boundary, "Content-Length": body.length }
+  }, (res) => {
+    let d = "";
+    res.on("data", (c) => (d += c));
+    res.on("end", () => {
+      let id = "";
+      try { id = JSON.parse(d).id || ""; } catch (e) {}
+      if (!id) console.log("media upload failed " + d.slice(0, 300));
+      cb(id);
+    });
+  });
+  req.on("error", (e) => { console.log("media upload error " + e); cb(""); });
+  req.write(body);
+  req.end();
+}
+
+function sendFileTo(to, mediaId, mime, fname, caption) {
+  const isImg = String(mime).indexOf("image/") === 0;
+  const payload = isImg
+    ? { messaging_product: "whatsapp", to: to, type: "image", image: { id: mediaId, caption: caption || "" } }
+    : { messaging_product: "whatsapp", to: to, type: "document", document: { id: mediaId, filename: fname, caption: caption || "" } };
+  waSend(payload, "send file to patient");
+}
+
+function lastInboundAt(phone) {
+  const a = chats.get(phone) || [];
+  for (let i = a.length - 1; i >= 0; i--) if (a[i].d === "in") return a[i].ts;
+  return 0;
+}
+
+app.post("/inbox/file", (req, res) => {
+  const b = req.body || {};
+  if (b.pin !== INBOX_PIN) return res.status(403).json({ error: "pin" });
+  const phone = String(b.phone || "").replace(/[^0-9]/g, "");
+  if (phone.length < 11) return res.status(400).json({ error: "phone" });
+  let buf;
+  try { buf = Buffer.from(String(b.data || ""), "base64"); } catch (e) { return res.status(400).json({ error: "could not read the file" }); }
+  if (!buf.length) return res.status(400).json({ error: "the file is empty" });
+  if (buf.length > 16 * 1024 * 1024) return res.status(400).json({ error: "file too large, keep it under 16 MB" });
+  const mime = String(b.mime || "application/pdf");
+  const fname = String(b.name || "file").slice(0, 80);
+  const caption = String(b.caption || "").slice(0, 900);
+  const last = lastInboundAt(phone);
+  const hrs = last ? Math.round((Date.now() - last) / 3600000) : 999;
+  if (hrs > 23) return res.status(409).json({ error: "window", hours: hrs });
+  waUploadMedia(buf, mime, fname, (id) => {
+    if (!id) return res.status(502).json({ error: "WhatsApp did not accept the file" });
+    sendFileTo(phone, id, mime, fname, caption);
+    setHuman(phone, 1);
+    storeMediaRetry(phone, fname, mime, buf, () => {});
+    res.json({ ok: true });
+  });
+});
+
+app.post("/inbox/upsell", (req, res) => {
+  const b = req.body || {};
+  if (b.pin !== INBOX_PIN) return res.status(403).json({ error: "pin" });
+  const phone = String(b.phone || "").replace(/[^0-9]/g, "");
+  if (phone.length < 11) return res.status(400).json({ error: "phone" });
+  const nm = String(waNames.get(phone) || "there").split(" ")[0];
+  sendUpsellButtons(phone, nm);
+  res.json({ ok: true });
+});
 
 app.post("/inbox/saved", (req, res) => {
   const b = req.body || {};

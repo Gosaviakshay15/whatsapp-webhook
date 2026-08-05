@@ -116,6 +116,7 @@ app.post("/webhook", (req, res) => {
     if (!msg) return;
     if (seen.has(msg.id)) return;
     seen.add(msg.id);
+    checkPending();
     const from = msg.from;
     if (msg.type === "interactive") {
       const it = msg.interactive;
@@ -143,6 +144,7 @@ app.post("/webhook", (req, res) => {
           const tag = exploring ? "Booking form JUST EXPLORING" : intl ? "INTERNATIONAL booking form" : "NEW BOOKING FORM";
           const ask = exploring ? "They are not ready to book yet. Please send information and keep it warm, do not push for a slot." : intl ? "Please handle this booking personally and share charges in their currency." : "Please check availability, confirm the slot and share the payment details.";
           sendAlert(tag + ": " + (flow.patient_name || nameFor(from)) + ", wa.me/" + from + ". " + bits.join(", ") + ". " + ask);
+          notePending(from, exploring ? "They filled the booking form as just exploring." : "They filled the booking form.");
         }
         return;
       }
@@ -180,6 +182,7 @@ function menuOrHuman(from, body) {
     sendTextTo(from, "Let me get a person to help you with this. Our care team will reply here shortly.");
     sendAlert("Bot could not understand " + nameFor(from) + ", wa.me/" + from + ". They said: " + String(body || "a message the bot cannot read").slice(0, 140) + ". Please reply on the clinic chat.");
     setHuman(from, 1);
+    notePending(from, "The bot could not understand them.");
     return;
   }
   sendMenu(from);
@@ -213,6 +216,7 @@ function handleLocation(from, body) {
     sendAlert("INTL enquiry: wa.me/" + from + " wants an online session. They said: " + body);
     postToSheet({ phone: from, mode: "Online", join_from: body, source: "INTL chat" });
     setHuman(from, 6);
+    notePending(from, "International online enquiry.");
     return;
   }
   setState(from, "post_location");
@@ -231,18 +235,21 @@ function checkSpecial(from, body) {
     sendTextTo(from, TXT_JOBS);
     sendAlert("Careers enquiry from wa.me/" + from + ": " + String(body).slice(0, 120));
     setHuman(from, 1);
+    notePending(from, "The bot handed this conversation to a person.");
     return true;
   }
   if (RED_FLAGS.some((w) => low.includes(w))) {
     sendTextTo(from, TXT_URGENT);
     sendAlert("URGENT: possible red flag symptoms from wa.me/" + from + ". Message: " + String(body).slice(0, 160) + " Please call this patient now.");
     setHuman(from, 1);
+    notePending(from, "The bot handed this conversation to a person.");
     return true;
   }
   if (CALLBACK_WORDS.some((w) => low.includes(w))) {
     sendTextTo(from, TXT_CALLBACK);
     sendAlert("Callback requested from wa.me/" + from + ": " + String(body).slice(0, 140));
     setHuman(from, 1);
+    notePending(from, "The bot handed this conversation to a person.");
     return true;
   }
   return false;
@@ -556,7 +563,8 @@ app.post("/inbox/send", (req, res) => {
   const text = String(b.text || "").trim();
   if (phone.length < 11 || !text) return res.status(400).json({ error: "phone and text required" });
   waSend({ messaging_product: "whatsapp", to: phone, type: "text", text: { preview_url: false, body: text } }, "inbox send", () => sendAlert("Reply to wa.me/" + phone + " could not be delivered. The 24 hour chat window may be closed."));
-  setHuman(phone, 6);
+  setHuman(phone, 1);
+  clearPending(phone);
   res.json({ ok: true });
 });
 
@@ -1063,9 +1071,38 @@ app.post("/inbox/file", (req, res) => {
     if (!id) return res.status(502).json({ error: "WhatsApp did not accept the file" });
     sendFileTo(phone, id, mime, fname, caption);
     setHuman(phone, 1);
+    clearPending(phone);
     storeMediaRetry(phone, fname, mime, buf, () => {});
     res.json({ ok: true });
   });
+});
+
+// ---- NOBODY REPLIED WATCH (45 minutes) ----
+const pending = new Map();
+function notePending(phone, what) { pending.set(String(phone), { at: Date.now(), what: what }); }
+function clearPending(phone) { pending.delete(String(phone)); }
+function checkPending() {
+  const now = Date.now();
+  pending.forEach((v, k) => {
+    if (now - v.at > 45 * 60 * 1000) {
+      pending.delete(k);
+      sendAlert("WAITING 45 MINUTES: " + nameFor(k) + ", wa.me/" + k + ". " + v.what + " Nobody has replied yet. Please respond now.");
+    }
+  });
+}
+
+app.get("/tick", (req, res) => {
+  checkPending();
+  res.json({ ok: true, waiting: pending.size });
+});
+
+app.post("/nudge", (req, res) => {
+  const b = req.body || {};
+  if (b.key !== SHEET_KEY) return res.status(403).json({ error: "forbidden" });
+  const phone = String(b.phone || "").replace(/[^0-9]/g, "");
+  if (phone.length < 11) return res.status(400).json({ error: "valid phone required" });
+  waSend({ messaging_product: "whatsapp", to: phone, type: "template", template: { name: "physiocally_book_your_session", language: { code: "en" } } }, "explorer nudge");
+  res.json({ ok: true });
 });
 
 app.post("/inbox/upsell", (req, res) => {
@@ -1074,6 +1111,7 @@ app.post("/inbox/upsell", (req, res) => {
   const phone = String(b.phone || "").replace(/[^0-9]/g, "");
   if (phone.length < 11) return res.status(400).json({ error: "phone" });
   const nm = String(waNames.get(phone) || "there").split(" ")[0];
+  clearPending(phone);
   sendUpsellButtons(phone, nm);
   res.json({ ok: true });
 });

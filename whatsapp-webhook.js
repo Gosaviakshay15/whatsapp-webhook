@@ -127,12 +127,14 @@ app.post("/webhook", (req, res) => {
           postToSheet({ type: "feedback", phone: from, case_id: flow.case_id, physio: flow.physio, case_type: flow.case_type, overall_rating: flow.overall_rating, physio_rating: flow.physio_rating, recommend: flow.recommend, improve: flow.improve });
         } else {
           postToSheet({ phone: from, name: flow.patient_name, mode: flow.mode, join_from: flow.join_from, time_pref: flow.time_pref, physio_choice: flow.physio_choice, condition: flow.condition, start_when: flow.start_when, source: flow.source });
+          if (flow.patient_name) patientNames.set(from, String(flow.patient_name).trim());
           const jf = String(flow.join_from || "").toLowerCase();
           if (jf.indexOf("other") !== -1 || jf.indexOf("country") !== -1) sendAlert("International booking form from wa.me/" + from + (flow.patient_name ? " - " + flow.patient_name : "") + (flow.time_pref ? " - prefers " + flow.time_pref : "") + ". Please handle this booking personally.");
         }
         return;
       }
       const id = it?.list_reply?.id || it?.button_reply?.id;
+      if (id && id.indexOf("media_") === 0) { logChat(from, "in", (it.button_reply && it.button_reply.title) || id); handleMediaChoice(from, id); return; }
       if (id) { logChat(from, "in", (it.list_reply && it.list_reply.title) || (it.button_reply && it.button_reply.title) || id); if (isHuman(from)) return; routeSelection(from, id); return; }
       return;
     }
@@ -735,7 +737,7 @@ function handleMedia(from, msg) {
             let txt = icon + " " + (caption ? caption + " - " : "") + fname;
             if (url) txt += "\n" + url;
             logChat(from, "in", txt);
-            mediaAlert(from, kind, caption);
+            askMediaType(from, fname, url, kind);
           });
         });
       } catch (e) { console.log("media info error", e.message); }
@@ -883,3 +885,49 @@ app.post("/inbox/saved", (req, res) => {
   }
   return res.status(400).json({ error: "unknown kind" });
 });
+
+
+// ---- MEDIA CLASSIFICATION (patient tags it, FDO gets a clear alert) ----
+const pendingMedia = new Map();
+const patientNames = new Map();
+
+function nameFor(phone) {
+  const n = patientNames.get(phone);
+  return n ? n : "+" + phone;
+}
+
+function askMediaType(from, fname, url, kind) {
+  pendingMedia.set(from, { fname: fname, url: url, kind: kind, at: Date.now() });
+  waSend({
+    messaging_product: "whatsapp",
+    to: from,
+    type: "interactive",
+    interactive: {
+      type: "button",
+      body: { text: "Thank you! \u{1F64F} So we can file this correctly, what have you shared?" },
+      action: { buttons: [
+        { type: "reply", reply: { id: "media_pay", title: "Payment screenshot" } },
+        { type: "reply", reply: { id: "media_report", title: "Medical report" } },
+        { type: "reply", reply: { id: "media_other", title: "Something else" } }
+      ] }
+    }
+  }, "media type ask", () => mediaAlertNow(from, ""));
+  setTimeout(() => { if (pendingMedia.has(from)) mediaAlertNow(from, ""); }, 180000);
+}
+
+function mediaAlertNow(from, label) {
+  const p = pendingMedia.get(from);
+  pendingMedia.delete(from);
+  const who = nameFor(from);
+  const tag = label || "File";
+  const link = p && p.url ? "\nOpen: " + p.url : "";
+  const fn = p && p.fname ? " (" + p.fname + ")" : "";
+  sendAlert(tag + " from " + who + ", wa.me/" + from + fn + "." + link);
+}
+
+function handleMediaChoice(from, id) {
+  if (id === "media_pay") { mediaAlertNow(from, "\u{1F4B0} Payment screenshot"); return sendTextTo(from, "\u{1F64F} Thank you! Our care team will verify your payment and confirm shortly."); }
+  if (id === "media_report") { mediaAlertNow(from, "\u{1F4C4} Medical report"); return sendTextTo(from, "\u{1F64F} Thank you! Your report is with our team and will be shared with your physiotherapist."); }
+  if (id === "media_other") { mediaAlertNow(from, "\u{1F4CE} File"); return sendTextTo(from, "\u{1F64F} Thank you! Our care team will look at this and reply here."); }
+  return false;
+}

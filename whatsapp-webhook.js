@@ -170,8 +170,9 @@ function routeSelection(from, id) {
   if (id === "act_menu") return sendMenu(from);
   if (id === "act_addr") return sendActions(from, TXT_ADDRESS, ["book", "menu"]);
   if (id === "mode_online") { setState(from, "awaiting_location"); return sendTextTo(from, TXT_ASK_LOCATION); }
-  if (id === "upsell_packs") return sendTextTo(from, TXT_UPSELL_PACKS);
-  if (id === "upsell_next") return sendTextTo(from, TXT_UPSELL_NEXT);
+  if (id === "upsell_packs") return sendPackButtons(from);
+  if (id === "upsell_next") return sendSingleButtons(from);
+  if (id.indexOf("pick_") === 0) return handlePick(from, id);
   sendMenu(from);
 }
 
@@ -464,7 +465,7 @@ function logChat(phone, dir, text) {
   if (!a) { a = []; chats.set(phone, a); }
   a.push({ d: dir, t: String(text || "").slice(0, 1000), ts: Date.now() });
   if (a.length > 200) a.splice(0, a.length - 200);
-  postToSheet({ type: "chat", phone: phone, dir: dir, text: String(text || "").slice(0, 500) });
+  postToSheet({ type: "chat", phone: phone, dir: dir, text: String(text || "").slice(0, 500), name: String(waNames.get(phone) || "").slice(0, 40) });
 }
 
 function chatLogOut(payload) {
@@ -753,6 +754,8 @@ function collectHistory(res) {
         let a = chats.get(phone);
         if (!a) { a = []; chats.set(phone, a); }
         a.push({ d: r[2] === "out" ? "out" : "in", t: String(r[3] || "").slice(0, 1000), ts: Number(r[0]) || Date.now() });
+        const nm = String(r[4] || "").trim();
+        if (nm) waNames.set(phone, nm.slice(0, 40));
       });
       chats.forEach((a) => { a.sort((x, y) => x.ts - y.ts); if (a.length > 200) a.splice(0, a.length - 200); });
       console.log("hydrated chats:", chats.size, "threads");
@@ -845,6 +848,48 @@ function mediaAlert(from, kind, caption) {
 
 
 // ---- UPSELL + REMINDERS (triggered from the sheet) ----
+function sendPackButtons(to) {
+  waSend({
+    messaging_product: "whatsapp",
+    to: to,
+    type: "interactive",
+    interactive: {
+      type: "button",
+      body: { text: TXT_UPSELL_PACKS },
+      action: { buttons: [
+        { type: "reply", reply: { id: "pick_5", title: "5 sessions" } },
+        { type: "reply", reply: { id: "pick_10", title: "10 sessions" } },
+        { type: "reply", reply: { id: "pick_single", title: "Single session" } }
+      ] }
+    }
+  }, "pack options", () => sendTextTo(to, TXT_UPSELL_PACKS));
+}
+
+function sendSingleButtons(to) {
+  waSend({
+    messaging_product: "whatsapp",
+    to: to,
+    type: "interactive",
+    interactive: {
+      type: "button",
+      body: { text: TXT_UPSELL_NEXT },
+      action: { buttons: [
+        { type: "reply", reply: { id: "pick_single", title: "Book my session" } },
+        { type: "reply", reply: { id: "upsell_packs", title: "Package options" } }
+      ] }
+    }
+  }, "single option", () => sendTextTo(to, TXT_UPSELL_NEXT));
+}
+
+function handlePick(from, id) {
+  const label = id === "pick_5" ? "the 5 session package at Rs 949 per session"
+    : id === "pick_10" ? "the 10 session package at Rs 899 per session"
+    : "a single session at Rs 999";
+  sendTextTo(from, "Thank you! Our care team will confirm your slot and share the payment details right here shortly.");
+  sendAlert("Follow up confirmed: " + nameFor(from) + " has chosen " + label + ". wa.me/" + from + " Please confirm the slot and send the payment details.");
+  setHuman(from, 2);
+}
+
 function sendUpsellButtons(to, name) {
   waSend({
     messaging_product: "whatsapp",

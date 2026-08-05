@@ -146,7 +146,8 @@ app.post("/webhook", (req, res) => {
       const st = getState(from);
       if (st === "awaiting_location") { state.delete(from); handleLocation(from, body); return; }
       if (st === "awaiting_condition") { state.delete(from); handleCondition(from, body); return; }
-      if (st === "post_location") { state.delete(from); sendTextTo(from, TXT_NOTED); return; }
+      if (st === "post_location") { state.delete(from); if (checkIntent(from, body)) return; sendActions(from, TXT_NOTED, ["book", "menu"]); return; }
+      if (checkIntent(from, body)) return;
       sendMenu(from);
       return;
     }
@@ -162,8 +163,11 @@ function routeSelection(from, id) {
   if (id === "menu_book") return sendFlow(from);
   if (id === "menu_physios") return sendTextTo(from, TXT_PHYSIOS);
   if (id === "menu_condition") { setState(from, "awaiting_condition"); return sendTextTo(from, TXT_ASK_CONDITION); }
-  if (id === "mode_clinic") return sendTextTo(from, TXT_CLINIC);
-  if (id === "mode_home") return sendTextTo(from, TXT_HOME);
+  if (id === "mode_clinic") return sendActions(from, TXT_CLINIC, ["book", "addr", "menu"]);
+  if (id === "mode_home") return sendActions(from, TXT_HOME, ["book", "menu"]);
+  if (id === "act_book") return sendFlow(from);
+  if (id === "act_menu") return sendMenu(from);
+  if (id === "act_addr") return sendActions(from, TXT_ADDRESS, ["book", "menu"]);
   if (id === "mode_online") { setState(from, "awaiting_location"); return sendTextTo(from, TXT_ASK_LOCATION); }
   if (id === "upsell_packs") return sendTextTo(from, TXT_UPSELL_PACKS);
   if (id === "upsell_next") return sendTextTo(from, TXT_UPSELL_NEXT);
@@ -174,7 +178,7 @@ function handleLocation(from, body) {
   const low = body.toLowerCase();
   const isIndia = INDIA_HINTS.some((h) => low.includes(h));
   if (isIndia) {
-    sendTextTo(from, TXT_ONLINE_INDIA);
+    sendActions(from, TXT_ONLINE_INDIA, ["book", "menu"]);
   } else {
     sendTextTo(from, TXT_INTL);
     sendAlert("INTL enquiry: wa.me/" + from + " wants an online session. They said: " + body);
@@ -929,5 +933,35 @@ function handleMediaChoice(from, id) {
   if (id === "media_pay") { mediaAlertNow(from, "\u{1F4B0} Payment screenshot"); return sendTextTo(from, "\u{1F64F} Thank you! Our care team will verify your payment and confirm shortly."); }
   if (id === "media_report") { mediaAlertNow(from, "\u{1F4C4} Medical report"); return sendTextTo(from, "\u{1F64F} Thank you! Your report is with our team and will be shared with your physiotherapist."); }
   if (id === "media_other") { mediaAlertNow(from, "\u{1F4CE} File"); return sendTextTo(from, "\u{1F64F} Thank you! Our care team will look at this and reply here."); }
+  return false;
+}
+
+
+// ---- ACTION BUTTONS + INTENT ----
+const TXT_ADDRESS = "\u{1F4CD} *Physiocally Clinic*\nMahavir Terrace, Dawood Baug Road, Andheri West, Mumbai 400058\n\n\u{1F5FA}️ Directions: https://maps.app.goo.gl/7WcBtf8RHqTF5GiM6\n\nOur team is available *9 AM to 9 PM*.";
+const ADDR_WORDS = ["address", "location of", "where is", "where are you", "how to reach", "directions", "google map", "maps", "landmark", "which area", "clinic address"];
+const BOOK_WORDS = ["book", "appointment", "slot", "schedule", "want to come", "fix a time"];
+const MENU_WORDS = ["menu", "options", "start over", "main menu"];
+
+function sendActions(to, text, opts) {
+  const btns = [];
+  (opts || ["book", "menu"]).forEach((o) => {
+    if (o === "book") btns.push({ type: "reply", reply: { id: "act_book", title: "Book a session" } });
+    if (o === "addr") btns.push({ type: "reply", reply: { id: "act_addr", title: "Clinic address" } });
+    if (o === "menu") btns.push({ type: "reply", reply: { id: "act_menu", title: "Main menu" } });
+  });
+  waSend({
+    messaging_product: "whatsapp",
+    to: to,
+    type: "interactive",
+    interactive: { type: "button", body: { text: String(text).slice(0, 1020) }, action: { buttons: btns } }
+  }, "actions", () => sendTextTo(to, text));
+}
+
+function checkIntent(from, body) {
+  const low = String(body || "").toLowerCase();
+  if (ADDR_WORDS.some((w) => low.includes(w))) { sendActions(from, TXT_ADDRESS, ["book", "menu"]); return true; }
+  if (BOOK_WORDS.some((w) => low.includes(w))) { sendFlow(from); return true; }
+  if (MENU_WORDS.some((w) => low.includes(w))) { sendMenu(from); return true; }
   return false;
 }

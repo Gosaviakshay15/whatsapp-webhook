@@ -898,7 +898,7 @@ const pendingMedia = new Map();
 const patientNames = new Map();
 
 function nameFor(phone) {
-  const n = patientNames.get(phone);
+  const n = waNames.get(phone);
   return n ? n : "+" + phone;
 }
 
@@ -982,6 +982,6 @@ function countryOf(phone) {
   return "International";
 }
 function whoIs(phone) {
-  const nm = patientNames.get(phone) || waNames.get(phone) || "";
+  const nm = waNames.get(phone) || "";
   return { name: nm, country: countryOf(phone) };
 }

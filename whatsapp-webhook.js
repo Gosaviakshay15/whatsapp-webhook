@@ -48,7 +48,7 @@ const TXT_FORM_ACK = "Thank you! Your details are with our care team.\n\nOur tea
 const TXT_UPSELL_PACKS = "To make your treatment more consistent, we have:\n\n📦 *5 Sessions* — Rs 949 per session\n📦 *10 Sessions* — Rs 899 per session\n\n(Advance payment required for package pricing)\n\nPackages help in faster recovery and better results.\n\nWhich one would you like to go ahead with?";
 const TXT_UPSELL_NEXT = "A single follow up session is *Rs 999*.\n\nReply here and our care team will schedule your next session at a time that suits you ✅";
 const TXT_UPSELL_NO = "No problem! Whenever you are ready, just message us here. Wishing you a speedy recovery 💚";
-const COND_CTA = "\n\n📅 *Book a consultation* and our physio will assess your case and design your plan.";
+const COND_CTA = "\n\n📅 Tap *Book a session* below and our physio will assess your case and design your plan.";
 const CONDITIONS = [
   { k: ["vertigo", "dizzy", "dizziness", "giddiness", "bppv", "balance"], t: "Vertigo and giddiness often come from the inner ear or the neck. Our physiotherapists assess the cause and use proven repositioning techniques and balance retraining, and most patients improve quickly once the right cause is identified." },
   { k: ["tmj", "jaw", "jaw pain", "lock jaw", "clicking jaw"], t: "Jaw and TMJ pain responds well to physiotherapy. We release the jaw and neck muscles, correct the movement pattern and guide you on habits that keep the pain from returning." },
@@ -130,7 +130,19 @@ app.post("/webhook", (req, res) => {
           postToSheet({ phone: from, name: flow.patient_name, mode: flow.mode, join_from: flow.join_from, time_pref: flow.time_pref, physio_choice: flow.physio_choice, condition: flow.condition, start_when: flow.start_when, source: flow.source });
           if (flow.patient_name) patientNames.set(from, String(flow.patient_name).trim());
           const jf = String(flow.join_from || "").toLowerCase();
-          if (jf.indexOf("other") !== -1 || jf.indexOf("country") !== -1) sendAlert("International booking form from wa.me/" + from + (flow.patient_name ? " - " + flow.patient_name : "") + (flow.time_pref ? " - prefers " + flow.time_pref : "") + ". Please handle this booking personally.");
+          const sw = String(flow.start_when || "").toLowerCase();
+          const intl = jf && jf.indexOf("india") === -1;
+          const exploring = sw.indexOf("exploring") !== -1;
+          const bits = [];
+          if (flow.mode) bits.push(String(flow.mode));
+          if (flow.condition) bits.push(String(flow.condition).slice(0, 70));
+          if (flow.start_when) bits.push("start: " + flow.start_when);
+          if (flow.time_pref) bits.push("prefers " + flow.time_pref);
+          if (flow.physio_choice) bits.push(String(flow.physio_choice));
+          if (flow.join_from) bits.push("joining from " + flow.join_from);
+          const tag = exploring ? "Booking form JUST EXPLORING" : intl ? "INTERNATIONAL booking form" : "NEW BOOKING FORM";
+          const ask = exploring ? "They are not ready to book yet. Please send information and keep it warm, do not push for a slot." : intl ? "Please handle this booking personally and share charges in their currency." : "Please check availability, confirm the slot and share the payment details.";
+          sendAlert(tag + ": " + (flow.patient_name || nameFor(from)) + ", wa.me/" + from + ". " + bits.join(", ") + ". " + ask);
         }
         return;
       }
@@ -162,7 +174,7 @@ app.post("/webhook", (req, res) => {
 function routeSelection(from, id) {
   if (id === "menu_charges") return sendModeButtons(from);
   if (id === "menu_book") return sendFlow(from);
-  if (id === "menu_physios") return sendTextTo(from, TXT_PHYSIOS);
+  if (id === "menu_physios") return sendActions(from, TXT_PHYSIOS, ["book", "menu"]);
   if (id === "menu_condition") { setState(from, "awaiting_condition"); return sendTextTo(from, TXT_ASK_CONDITION); }
   if (id === "mode_clinic") return sendActions(from, TXT_CLINIC, ["book", "addr", "menu"]);
   if (id === "mode_home") return sendActions(from, TXT_HOME, ["book", "menu"]);
@@ -225,7 +237,7 @@ function handleCondition(from, body) {
   if (checkSpecial(from, body)) return;
   const low = body.toLowerCase();
   const hit = CONDITIONS.find((c) => c.k.some((k) => low.includes(k)));
-  sendTextTo(from, (hit ? hit.t : COND_FALLBACK) + COND_CTA);
+  sendActions(from, (hit ? hit.t : COND_FALLBACK) + COND_CTA, ["book", "menu"]);
 }
 
 function waSend(payload, label, onFail) {

@@ -37,19 +37,21 @@ const FALLBACK_TEXT = "Namaste from Physiocally! We can help with back pain, nec
 
 const TXT_CLINIC = "🏥 *Consultation at our Andheri West clinic*\n\nTo get you the best results, we offer two starting points:\n\n*Option 1 — Senior Team Assessment: Rs 999*\nA detailed one on one evaluation with our senior physiotherapists, using Dr. Akshay's exact diagnostic framework to find your root cause and build your custom plan.\n🕐 Slots usually available within 24 hours\n\n*Option 2 — Premium Assessment with Dr. Akshay: Rs 3999*\nA one on one evaluation directly with Dr. Akshay.\n🕐 Slots are limited and may require a wait\n\nTap *Book a session* in the menu and our care team will confirm your slot right here on WhatsApp ✅";
 const TXT_HOME = "🏠 *Home visit consultation, anywhere in Mumbai*\n\n🩺 Senior Physiotherapist: *Rs 1499*\n\nOur physio comes to you with everything needed for assessment and treatment. Dr. Akshay personally consults at the clinic and online.\n\nTap *Book a session* in the menu and our care team will confirm your slot right here on WhatsApp ✅";
-const TXT_ASK_LOCATION = "🌍 Online consultations are available *worldwide*.\n\nWhich city and country will you be in during your session? Please also share your preferred time in *your local time* 🕐";
+const TXT_ASK_LOCATION = "🌍 Online consultations are available *worldwide*.\n\nSo we can schedule correctly across time zones, which city and country will you be in during your session, and what time suits you *in your local time*? 🕐";
 const TXT_NOTED = "Noted, thank you! 🙏 Our care team will keep this in mind while confirming your slot.\n\nTap *Book a session* in the menu whenever you are ready and we will lock it in for you.";
-const TXT_ONLINE_INDIA = "💻 *Online video consultation from India*\n\nTo get you the best results, we offer two starting points:\n\n*Option 1 — Senior Team Assessment: Rs 999*\nA detailed one on one evaluation with our senior physiotherapists, using Dr. Akshay's exact diagnostic framework to find your root cause and build your custom plan.\n🕐 Slots usually available within 24 hours\n\n*Option 2 — Premium Assessment with Dr. Akshay: Rs 3499*\nA one on one evaluation directly with Dr. Akshay.\n🕐 Dr. Akshay consults at *1 PM and 6 PM IST*, slots are limited\n\nTap *Book a session* in the menu and our care team will confirm your slot right here on WhatsApp ✅";
-const TXT_INTL = "🌍 Thank you!\n\nOur care team personally handles bookings outside India. They will message you here shortly with your consultation details, charges and slots that suit your time zone 🕐";
+const TXT_ONLINE_INDIA = "💻 *Online video consultation from India*\n\nTo get you the best results, we offer two starting points:\n\n*Option 1 — Senior Team Assessment: Rs 999*\nA detailed one on one evaluation with our senior physiotherapists, using Dr. Akshay's exact diagnostic framework to find your root cause and build your custom plan.\n🕐 Slots usually available within 24 hours\n\n*Option 2 — Premium Assessment with Dr. Akshay: Rs 3499*\nA one on one evaluation directly with Dr. Akshay.\n🕐 Dr. Akshay consults at *1 PM and 6 PM IST*, slots are limited\n\n📱 Sessions run on a video call link we share before your slot, and last *40 to 60 minutes*.\n\nTap *Book a session* in the menu and our care team will confirm your slot right here on WhatsApp ✅";
+const TXT_INTL = "🌍 Thank you!\n\nOur care team personally handles bookings outside India. They will message you here with your consultation details, charges and slots that suit your time zone.\n\n🕐 Our team is available *9 AM to 9 PM IST*";
 const TXT_PHYSIOS = "👨‍⚕️ *Dr. Akshay Gosavi, Founder of Physiocally*\nMasters in Physiotherapy (MUHS)\n10 years of clinical experience\nExpert in accurately diagnosing the root cause of pain\n\n🩺 *Our Senior Physiotherapists*\nQualified, experienced and experts in diagnosing and treating musculoskeletal pain, rated highly by our patients.\n\n⭐ *Physiocally* has delivered over *1,00,000 sessions* since 2022 with a *4.8 star* Google rating.";
 const TXT_ASK_CONDITION = "Tell me what you are dealing with, for example back pain, migraine or knee pain, and I will tell you how physiotherapy can help 💬";
 
-const TXT_FORM_ACK = "🙏 Thank you! Your details are with our care team.\n\nThey are checking physiotherapist availability and will confirm your slot right here on WhatsApp shortly 🕐";
+const TXT_FORM_ACK = "🙏 Thank you! Your details are with our care team.\n\nOur team will check availability and confirm your slot right here on WhatsApp shortly 🕐";
 const TXT_UPSELL_PACKS = "To make your treatment more consistent, we have:\n\n📦 *5 Sessions* — Rs 949 per session\n📦 *10 Sessions* — Rs 899 per session\n\n(Advance payment required for package pricing)\n\nPackages help in faster recovery and better results.\n\nWhich one would you like to go ahead with?";
 const TXT_UPSELL_NEXT = "A single follow up session is *Rs 999*.\n\nReply here and our care team will schedule your next session at a time that suits you ✅";
 const TXT_UPSELL_NO = "No problem! 🙏 Whenever you are ready, just message us here. Wishing you a speedy recovery 💚";
 const COND_CTA = "\n\n📅 *Book a consultation* and our physio will assess your case and design your plan.";
 const CONDITIONS = [
+  { k: ["vertigo", "dizzy", "dizziness", "giddiness", "bppv", "balance"], t: "Vertigo and giddiness often come from the inner ear or the neck. Our physiotherapists assess the cause and use proven repositioning techniques and balance retraining, and most patients improve quickly once the right cause is identified." },
+  { k: ["tmj", "jaw", "jaw pain", "lock jaw", "clicking jaw"], t: "Jaw and TMJ pain responds well to physiotherapy. We release the jaw and neck muscles, correct the movement pattern and guide you on habits that keep the pain from returning." },
   { k: ["migraine", "headache", "head ache"], t: "Many headaches and migraines have a neck related trigger. Physiotherapy relieves muscle tension and stiffness in the neck and shoulders and can reduce how often and how strongly they occur." },
   { k: ["neck", "cervical"], t: "Neck pain and stiffness respond well to physiotherapy. We use targeted movement, deep neck muscle activation and workstation guidance to relieve pain at its source." },
   { k: ["sciatica", "disc", "numbness", "nerve", "leg pain"], t: "Sciatica, slip disc related pain and leg numbness are among the most common conditions we treat. Directional movement and core strengthening relieve nerve pressure naturally." },
@@ -138,6 +140,7 @@ app.post("/webhook", (req, res) => {
       const body = (msg.text?.body || "").trim();
       logChat(from, "in", body);
       if (isHuman(from)) return;
+      if (checkSpecial(from, body)) return;
       const st = getState(from);
       if (st === "awaiting_location") { state.delete(from); handleLocation(from, body); return; }
       if (st === "awaiting_condition") { state.delete(from); handleCondition(from, body); return; }
@@ -180,7 +183,38 @@ function handleLocation(from, body) {
   setState(from, "post_location");
 }
 
+const RED_FLAGS = ["bladder", "urine", "incontinen", "saddle numb", "chest pain", "breathless", "cannot move", "can not move", "can't move", "unconscious", "fainted", "accident", "fracture", "broken bone", "fell down", "unable to stand", "cannot stand", "cannot walk", "can't walk"];
+const CALLBACK_WORDS = ["call me", "callback", "call back", "phone me", "talk to someone", "speak to someone", "is anyone there", "real person", "human", "insurance", "cashless", "mediclaim", "reimburse", "gst", "corporate", "employees", "hr team", "tie up", "tie-up"];
+const JOB_WORDS = ["vacancy", "job", "hiring", "career", "internship", "resume", "cv ", "apply for"];
+const TXT_URGENT = "\u{1F64F} Thank you for sharing this.\n\nWhat you have described needs to be looked at urgently. Our care team will call you shortly to guide you.";
+const TXT_CALLBACK = "\u{1F64F} Our care team will call you shortly on this number.\n\nYou can also reach the clinic directly on *7304181920* (9 AM to 9 PM).";
+const TXT_JOBS = "\u{1F64F} Thank you for your interest in working with Physiocally.\n\nPlease send your CV on WhatsApp to *7304181920* and our team will get back to you.";
+
+function checkSpecial(from, body) {
+  const low = String(body || "").toLowerCase();
+  if (JOB_WORDS.some((w) => low.includes(w))) {
+    sendTextTo(from, TXT_JOBS);
+    sendAlert("Careers enquiry from wa.me/" + from + ": " + String(body).slice(0, 120));
+    setHuman(from, 1);
+    return true;
+  }
+  if (RED_FLAGS.some((w) => low.includes(w))) {
+    sendTextTo(from, TXT_URGENT);
+    sendAlert("URGENT: possible red flag symptoms from wa.me/" + from + ". Message: " + String(body).slice(0, 160) + " Please call this patient now.");
+    setHuman(from, 1);
+    return true;
+  }
+  if (CALLBACK_WORDS.some((w) => low.includes(w))) {
+    sendTextTo(from, TXT_CALLBACK);
+    sendAlert("Callback requested from wa.me/" + from + ": " + String(body).slice(0, 140));
+    setHuman(from, 1);
+    return true;
+  }
+  return false;
+}
+
 function handleCondition(from, body) {
+  if (checkSpecial(from, body)) return;
   const low = body.toLowerCase();
   const hit = CONDITIONS.find((c) => c.k.some((k) => low.includes(k)));
   sendTextTo(from, (hit ? hit.t : COND_FALLBACK) + COND_CTA);
@@ -267,7 +301,7 @@ function sendModeButtons(to) {
     type: "interactive",
     interactive: {
       type: "button",
-      body: { text: "Where would you like your session? 🏥" },
+      body: { text: "Which charges would you like to see? 🏥" },
       action: {
         buttons: [
           { type: "reply", reply: { id: "mode_clinic", title: "Clinic Andheri West" } },
@@ -793,7 +827,7 @@ app.post("/remind", (req, res) => {
       to: phone,
       type: "template",
       template: { name: "physiocally_reminder", language: { code: "en" }, components: [{ type: "body", parameters: [{ type: "text", text: rname }, { type: "text", text: when }] }] }
-    }, "reminder", () => sendTextTo(phone, "Hi " + rname + " 🙏 A gentle reminder from Physiocally: you have a physiotherapy session scheduled for " + when + ". Reply here if you would like to reschedule."));
+    }, "reminder", () => sendTextTo(phone, "Hi " + rname + " 🙏 A gentle reminder from Physiocally: you have a physiotherapy session scheduled for " + when + ". Reply here if you would like to reschedule, or if you have any concerns after your last session."));
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: String(e) }); }
 });
@@ -811,7 +845,7 @@ app.post("/alert", (req, res) => {
 
 // ---- SAVED REPLIES + FORM SUMMARY ----
 const QR_URL = "https://drive.google.com/uc?export=view&id=1sEzHDSKGemgfQ9CwKJyi507X-N80GiV8";
-const TXT_PAYMENT = "*Payment details*\n\nAccount Name: Physiocally\nAccount Number: 122505002473\nBank Name: ICICI Bank\nBranch: Andheri Veera Desai Road\nIFSC: ICIC0001225\nUPI ID: physiocallyaccount@icici\n\nPlease share the screenshot after the transaction 🙏";
+const TXT_PAYMENT = "*Payment details*\n\nAccount Name: Physiocally\nAccount Number: 122505002473\nBank Name: ICICI Bank\nBranch: Andheri Veera Desai Road\nIFSC: ICIC0001225\nUPI ID: physiocallyaccount@icici\n\nPlease share the screenshot after the transaction 🙏\n\n📍 *Physiocally*, Andheri Veera Desai Road, Mumbai\nhttps://www.physiocally.com";
 
 function formSummary(flow) {
   if (!flow || typeof flow !== "object") return "[Booking form submitted]";

@@ -477,7 +477,11 @@ function chatLogOut(payload) {
     const kind = it.type === "list" ? "Menu" : it.type === "button" ? "Buttons" : it.type === "flow" ? "Booking form" : "Interactive";
     txt = "[" + kind + "] " + ((it.body && it.body.text) || "");
   }
-  else if (payload.type === "template") txt = "[Template: " + payload.template.name + "]";
+  else if (payload.type === "template") {
+    let tp = "";
+    try { tp = payload.template.components[0].parameters.map((p) => p.text).join(" "); } catch (e) {}
+    txt = tp ? "[Alert] " + tp : "[Template: " + payload.template.name + "]";
+  }
   else if (payload.type === "document") txt = "[Document: " + (payload.document.filename || "file") + "]";
   else txt = "[" + payload.type + "]";
   let a = chats.get(to);
@@ -773,7 +777,7 @@ function downloadMedia(u, cb) {
 }
 
 function storeMedia(phone, name, mime, buf, cb) {
-  const body = JSON.stringify({ key: SHEET_KEY, type: "media", phone: phone, name: name, mime: mime, data: buf.toString("base64") });
+  const body = JSON.stringify({ key: SHEET_KEY, type: "media", phone: phone, name: name, who: String(waNames.get(String(phone)) || "").slice(0, 40), mime: mime, data: buf.toString("base64") });
   let u;
   try { u = new URL(SHEET_URL); } catch (e) { cb(""); return; }
   const req = https.request({ hostname: u.hostname, path: u.pathname + u.search, method: "POST", headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) } }, (res) => {

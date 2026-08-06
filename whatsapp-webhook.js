@@ -382,7 +382,7 @@ function sendFlow(to) {
           flow_id: FLOW_ID,
           flow_cta: "Book Your Session",
           flow_action: "navigate",
-          flow_action_payload: { screen: "BOOK", data: { prefill_mode: String(pickedMode.get(to) || "") } },
+          flow_action_payload: { screen: "BOOK", data: { prefill_mode: String(pickedMode.get(to) || ""), show_country: pickedMode.get(to) !== "At our Andheri West clinic" && pickedMode.get(to) !== "Home visit" } },
         },
       },
     },

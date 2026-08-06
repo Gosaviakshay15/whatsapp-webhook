@@ -37,9 +37,39 @@ const FALLBACK_TEXT = "Namaste from Physiocally! We can help with back pain, nec
 
 const TXT_CLINIC = "🏥 *Consultation at our Andheri West clinic*\n\nTo get you the best results, we offer two starting points:\n\n*Option 1 — Senior Team Assessment: Rs 999*\nA detailed one on one evaluation with our senior physiotherapists, using Dr. Akshay's exact diagnostic framework to find your root cause and build your custom plan.\n🕐 Slots usually available within 24 hours\n\n*Option 2 — Premium Assessment with Dr. Akshay: Rs 3999*\nA one on one evaluation directly with Dr. Akshay.\n🕐 Slots are limited and may require a wait";
 const TXT_HOME = "🏠 *Home visit consultation, anywhere in Mumbai*\n\n🩺 Senior Physiotherapist: *Rs 1499*\nSession charges reduce when a longer treatment plan is needed.\n\nOur physio comes to you with everything needed for assessment and treatment. Dr. Akshay personally consults at the clinic and online.";
-const TXT_ASK_LOCATION = "🌍 Online consultations are available *worldwide*.\n\nSo we can schedule correctly across time zones, which city and country will you be in during your session, and what time suits you *in your local time*? 🕐";
+const TXT_ASK_LOCATION = "🌍 Online consultations are available *worldwide*.\n\nWhich city and country will you be in during your session? I will send you the charges and slot options for your time zone right away. 🕐";
 const TXT_NOTED = "Noted. Our care team will keep this in mind while confirming your slot.";
 const TXT_ONLINE_INDIA = "💻 *Online video consultation from India*\n\nTo get you the best results, we offer two starting points:\n\n*Option 1 — Senior Team Assessment: Rs 999*\nA detailed one on one evaluation with our senior physiotherapists, using Dr. Akshay's exact diagnostic framework to find your root cause and build your custom plan.\n🕐 Slots usually available within 24 hours\n\n*Option 2 — Premium Assessment with Dr. Akshay: Rs 3499*\nA one on one evaluation directly with Dr. Akshay.\n🕐 Dr. Akshay consults at *1 PM and 6 PM IST*, slots are limited\n\n📱 Sessions run on a video call link we share before your slot, and last *40 to 60 minutes*.";
+// ---- INTERNATIONAL RATE CARD ----
+const CURRENCY = [
+  ["971", "AED", 90, 330], ["966", "SAR", 95, 340], ["974", "QAR", 90, 330],
+  ["965", "KWD", 8, 28], ["968", "OMR", 10, 35], ["973", "BHD", 10, 35],
+  ["44", "GBP", 20, 70], ["1", "USD", 25, 90], ["61", "AUD", 39, 140],
+  ["64", "NZD", 42, 150], ["65", "SGD", 33, 118], ["60", "MYR", 105, 380],
+  ["49", "EUR", 22, 80], ["33", "EUR", 22, 80], ["39", "EUR", 22, 80],
+  ["34", "EUR", 22, 80], ["31", "EUR", 22, 80], ["32", "EUR", 22, 80],
+  ["353", "EUR", 22, 80], ["351", "EUR", 22, 80], ["43", "EUR", 22, 80],
+  ["41", "CHF", 22, 80], ["46", "SEK", 260, 940], ["47", "NOK", 270, 970],
+  ["45", "DKK", 170, 610], ["27", "ZAR", 460, 1650], ["254", "KES", 3200, 11500],
+  ["234", "NGN", 38000, 137000], ["20", "EGP", 1200, 4400], ["972", "ILS", 90, 330],
+  ["55", "BRL", 135, 490], ["52", "MXN", 460, 1650], ["1", "USD", 25, 90],
+  ["81", "JPY", 3800, 13700], ["82", "KRW", 34000, 122000], ["86", "CNY", 180, 650],
+  ["852", "HKD", 195, 700], ["66", "THB", 890, 3200], ["62", "IDR", 410000, 1480000],
+  ["63", "PHP", 1450, 5200], ["90", "TRY", 1050, 3800], ["7", "RUB", 2300, 8300]
+];
+function rateFor(phone) {
+  const p = String(phone || "");
+  let best = null;
+  for (let i = 0; i < CURRENCY.length; i++) {
+    const c = CURRENCY[i];
+    if (p.indexOf(c[0]) === 0 && (!best || c[0].length > best[0].length)) best = c;
+  }
+  return best || ["", "USD", 25, 90];
+}
+function intlRates(phone) {
+  const r = rateFor(phone);
+  return { cur: r[1], senior: r[2], akshay: r[3] };
+}
 const TXT_INTL = "🌍 Thank you!\n\nOur care team personally handles bookings outside India. They will message you here with your consultation details, charges and slots that suit your time zone.\n\n🕐 Our team is available *9 AM to 9 PM IST*";
 const TXT_PHYSIOS = "👨‍⚕️ *Dr. Akshay Gosavi, Founder of Physiocally*\nMasters in Physiotherapy (MUHS)\n10 years of clinical experience\nExpert in accurately diagnosing the root cause of pain\n\n🩺 *Our Senior Physiotherapists*\nQualified, experienced and experts in diagnosing and treating musculoskeletal pain, rated highly by our patients.\n\n⭐ *Physiocally* has delivered over *1,00,000 sessions* since 2022 with a *4.8 star* Google rating.";
 const TXT_ASK_CONDITION = "Tell me what you are dealing with, for example back pain, migraine or knee pain, and I will tell you how physiotherapy can help 💬";
@@ -142,7 +172,8 @@ app.post("/webhook", (req, res) => {
           if (flow.physio_choice) bits.push(String(flow.physio_choice));
           if (flow.join_from) bits.push("joining from " + flow.join_from);
           const tag = exploring ? "[EXPLORING] Booking form" : intl ? "[INTERNATIONAL] Booking form" : "[NEW BOOKING] Booking form";
-          const ask = exploring ? "They are not ready to book yet. Please send information and keep it warm, do not push for a slot." : intl ? "Please handle this booking personally and share charges in their currency." : "Please check availability, confirm the slot and share the payment details.";
+          const ir = intlRates(from);
+          const ask = exploring ? "They are not ready to book yet. Please send information and keep it warm, do not push for a slot." : intl ? ("Rates: India hours Rs 1499 senior or Rs 3999 with Dr. Akshay. Their local hours " + ir.cur + " " + ir.senior + " senior or " + ir.cur + " " + ir.akshay + " with Dr. Akshay. Ask which city they will be in, then confirm the slot and send a payment link.") : "Please check availability, confirm the slot and share the payment details.";
           sendAlert(tag + ": " + (flow.patient_name || nameFor(from)) + ", wa.me/" + from + ". " + bits.join(", ") + ". " + ask);
           notePending(from, exploring ? "They filled the booking form as just exploring." : "They filled the booking form.");
         }
@@ -206,6 +237,20 @@ function routeSelection(from, id) {
   sendMenu(from);
 }
 
+function intlPricingText(phone) {
+  const r = intlRates(phone);
+  return "\u{1F30D} *Online consultation, wherever you are*\n\n" +
+    "Our rates are the same worldwide. What changes is the hour.\n\n" +
+    "*During India hours, 9 AM to 9 PM IST*\n" +
+    "Senior Physiotherapist: *Rs 1499*\n" +
+    "With Dr. Akshay: *Rs 3999*\n\n" +
+    "*In your own morning or evening, outside India hours*\n" +
+    "Senior Physiotherapist: *" + r.cur + " " + r.senior + "*\n" +
+    "With Dr. Akshay: *" + r.cur + " " + r.akshay + "*\n\n" +
+    "Your physiotherapist works outside clinic hours for that slot, which is the difference. The consultation itself is identical.\n\n" +
+    "\u{1F4F1} A video call link comes before your slot. Sessions last *40 to 60 minutes*.\n" +
+    "\u{1F4B3} Payment by card link in your own currency.";
+}
 function handleLocation(from, body) {
   const low = body.toLowerCase();
   const isIndia = INDIA_HINTS.some((h) => low.includes(h));
@@ -213,8 +258,8 @@ function handleLocation(from, body) {
     notePicked(from, "online");
     sendActions(from, TXT_ONLINE_INDIA, ["book", "menu"]);
   } else {
-    sendTextTo(from, TXT_INTL);
-    sendAlert("[INTERNATIONAL] Online enquiry from wa.me/" + from + " wants an online session. They said: " + body);
+    sendActions(from, intlPricingText(from), ["book", "menu"]);
+    sendAlert("[INTERNATIONAL] Online enquiry from wa.me/" + from + ". They said: " + body + ". Rate card already sent. Confirm the slot and send a payment link.");
     postToSheet({ phone: from, mode: "Online", join_from: body, source: "INTL chat" });
     setHuman(from, 6);
     notePending(from, "International online enquiry.");

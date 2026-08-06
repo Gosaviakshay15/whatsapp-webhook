@@ -771,7 +771,7 @@ function renderChat(){
   el.innerHTML = t.msgs.map(m => '<div class="m ' + (m.d === "in" ? "in" : "out") + '">' + md(m.t) + '<small>' + fmt(m.ts) + '</small></div>').join("");
   el.scrollTop = el.scrollHeight;
 }
-async async function slotOffer(){
+async function slotOffer(){
   const who = cur;
   const physio = prompt("Physiotherapist name", "Dr. Akshay");
   if (!physio) return;

@@ -771,19 +771,36 @@ function renderChat(){
   el.innerHTML = t.msgs.map(m => '<div class="m ' + (m.d === "in" ? "in" : "out") + '">' + md(m.t) + '<small>' + fmt(m.ts) + '</small></div>').join("");
   el.scrollTop = el.scrollHeight;
 }
-async function quick(kind){
+async async function slotOffer(){
+  const who = cur;
+  const physio = prompt("Physiotherapist name", "Dr. Akshay");
+  if (!physio) return;
+  const slot = prompt("Slot, for example Today at 6:00 PM", "");
+  if (!slot) return;
+  const hold = prompt("Hold the slot until? For example 6 PM today. Leave blank for no hold.", "");
+  const tier = prompt("Amount to charge, number only.\n999 senior, India\n1499 senior, international at India hours\n3499 Dr Akshay online, India\n3999 Dr Akshay clinic, or international at India hours\n25 senior, USD\n90 Dr Akshay, USD", "999");
+  if (!tier) return;
+  const amount = Number(String(tier).replace(/[^0-9.]/g, ""));
+  if (!amount) { alert("That is not a number"); return; }
+  let money = "INR";
+  if (amount <= 500) { money = (prompt("Currency code, for example USD, AED, GBP", "USD") || "").toUpperCase(); if (!money) return; }
+  let link = "";
+  try {
+    const r = await fetch("/inbox/paylink", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: pin, phone: who, amount: amount, currency: money, note: "Physiocally consultation with " + physio }) });
+    const j = await r.json();
+    link = j.url || "";
+    if (!link) alert("Could not create the payment link: " + (j.error || "error") + ". The message is ready, add a link yourself.");
+  } catch (e) { alert("Could not reach Razorpay. The message is ready, add a link yourself."); }
+  let msg = "Hello! Confirming availability for your request\\n\\n*" + physio + "* has a slot open for you:\\n\\u{1F4C5} *" + slot + "*\\nConsultation fee: *" + (money === "INR" ? "Rs " + amount : money + " " + amount) + "*";
+  if (hold) msg += "\\n\\nThis slot is held for you until *" + hold + "*.";
+  if (link) msg += "\\n\\n\\u{1F4B3} Pay here to confirm your slot: " + link;
+  msg += "\\n\\nShall I confirm this slot for you?";
+  document.getElementById("txt").value = msg;
+}
+
+function quick(kind){
   if (!cur) { alert("Open a chat first"); return; }
-  if (kind === "slotoffer") {
-    const physio = prompt("Physio name? e.g. Dr. Akshay", "");
-    if (!physio) return;
-    const slot = prompt("Slot? e.g. Today at 6:00 PM", "");
-    if (!slot) return;
-    const fee = prompt("Consultation fee in Rs?", "999");
-    if (!fee) return;
-    document.getElementById("txt").value = "Hello! Confirming availability for your request\\n\\n*" + physio + "* has a slot open for you:\\n\u{1F4C5} *" + slot + "*\\n\u{1F4B0} Consultation fee: *Rs " + fee + "* (pre-payment required)\\n\\nPlease reply *Confirmed* and I will share the payment details.";
-    document.getElementById("txt").focus();
-    return;
-  }
+  if (kind === "slotoffer") { slotOffer(); return; }
   if (kind === "slot") {
     const physio = prompt("Physio name?", "");
     if (!physio) return;
@@ -1196,6 +1213,92 @@ app.post("/nudge", (req, res) => {
   res.json({ ok: true });
 });
 
+// ---- RAZORPAY PAYMENT LINKS ----
+const crypto = require("crypto");
+const RZP_ID = process.env.RAZORPAY_KEY_ID || "";
+const RZP_SECRET = process.env.RAZORPAY_KEY_SECRET || "";
+const RZP_HOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || "";
+const paidThreads = new Map();
+
+function rzpCreateLink(phone, amount, currency, note, cb) {
+  if (!RZP_ID || !RZP_SECRET) { console.log("razorpay keys missing"); return cb(""); }
+  const payload = JSON.stringify({
+    amount: Math.round(Number(amount) * 100),
+    currency: currency || "INR",
+    accept_partial: false,
+    description: String(note || "Physiocally consultation").slice(0, 200),
+    customer: { contact: "+" + String(phone) },
+    notify: { sms: false, email: false },
+    reminder_enable: false,
+    notes: { patient: String(phone) },
+    callback_method: ""
+  });
+  const auth = Buffer.from(RZP_ID + ":" + RZP_SECRET).toString("base64");
+  const req = https.request({
+    hostname: "api.razorpay.com",
+    path: "/v1/payment_links",
+    method: "POST",
+    headers: { Authorization: "Basic " + auth, "Content-Type": "application/json", "Content-Length": Buffer.byteLength(payload) }
+  }, (res) => {
+    let d = "";
+    res.on("data", (c) => (d += c));
+    res.on("end", () => {
+      let url = "";
+      try { url = JSON.parse(d).short_url || ""; } catch (e) {}
+      if (!url) console.log("razorpay link failed " + d.slice(0, 300));
+      cb(url);
+    });
+  });
+  req.on("error", (e) => { console.log("razorpay error " + e); cb(""); });
+  req.write(payload);
+  req.end();
+}
+
+app.post("/inbox/paylink", (req, res) => {
+  const b = req.body || {};
+  if (b.pin !== INBOX_PIN) return res.status(403).json({ error: "pin" });
+  const phone = String(b.phone || "").replace(/[^0-9]/g, "");
+  if (phone.length < 11) return res.status(400).json({ error: "phone" });
+  const amount = Number(b.amount || 0);
+  if (!amount) return res.status(400).json({ error: "amount" });
+  rzpCreateLink(phone, amount, b.currency || "INR", b.note, (url) => {
+    if (!url) return res.status(502).json({ error: "Razorpay did not create the link" });
+    res.json({ ok: true, url: url });
+  });
+});
+
+app.post("/razorpay", (req, res) => {
+  try {
+    const body = JSON.stringify(req.body || {});
+    if (RZP_HOOK_SECRET) {
+      const sig = req.headers["x-razorpay-signature"] || "";
+      const mine = crypto.createHmac("sha256", RZP_HOOK_SECRET).update(body).digest("hex");
+      if (sig !== mine) { console.log("razorpay signature mismatch"); return res.status(400).json({ error: "signature" }); }
+    }
+    const e = req.body || {};
+    let phone = "";
+    let amt = 0;
+    let cur = "INR";
+    try {
+      const pl = e.payload && e.payload.payment_link && e.payload.payment_link.entity;
+      const pm = e.payload && e.payload.payment && e.payload.payment.entity;
+      const src = pl || pm;
+      if (src) {
+        amt = Number(src.amount || 0) / 100;
+        cur = src.currency || "INR";
+        phone = String((src.notes && src.notes.patient) || (src.customer && src.customer.contact) || src.contact || "").replace(/[^0-9]/g, "");
+      }
+    } catch (err) {}
+    if (phone) {
+      paidThreads.set(phone, { at: Date.now(), amount: amt, currency: cur });
+      clearPending(phone);
+      logChat(phone, "in", "\u{1F4B0} PAID " + cur + " " + amt + " (confirmed by Razorpay)");
+      sendAlert("[PAID] " + nameFor(phone) + ", wa.me/" + phone + " has paid " + cur + " " + amt + ". Please block the slot and confirm the booking.");
+      sendTextTo(phone, "Payment received, thank you. Our care team is confirming your slot now and will message you here.");
+    }
+    res.json({ ok: true });
+  } catch (e) { res.json({ ok: true }); }
+});
 app.post("/inbox/upsell", (req, res) => {
   const b = req.body || {};
   if (b.pin !== INBOX_PIN) return res.status(403).json({ error: "pin" });

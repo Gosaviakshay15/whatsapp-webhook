@@ -1522,13 +1522,19 @@ function wantsAkshay(body) {
 function checkIntent(from, body) {
   const low = String(body || "").toLowerCase();
   if (wantsAkshay(body)) {
+    if (firstTouch(from)) {
+      noteStep(from, "greeted");
+      sendTextTo(from, "Namaste \u{1F64F}\n\nYes, *Dr. Akshay* consults personally at our Andheri West clinic and on video call.\n\nBefore we book, have a quick look at what we do and what it costs \u{1F447}");
+      setTimeout(function () { sendMenu(from); }, 1200);
+      return true;
+    }
     noteStep(from, "charges");
     sendActions(from, TXT_AKSHAY, ["book", "menu"]);
     return true;
   }
   if (firstTouch(from) && BOOK_WORDS.some((w) => low.includes(w))) {
     noteStep(from, "greeted");
-    sendActions(from, "Namaste from *Physiocally* \u{1F64F}\n\nHappy to help you book a session.\n\nTap below to share a few quick details, or see our charges first.", ["book", "menu"]);
+    sendMenu(from);
     return true;
   }
   if (COVER_WORDS.some((w) => low.includes(w))) { sendActions(from, TXT_COVERAGE, ["book", "menu"]); return true; }

@@ -293,10 +293,7 @@ function handleLocation(from, body) {
     sendActions(from, TXT_ONLINE_INDIA, ["book", "menu"]);
   } else {
     sendActions(from, intlPricingText(from), ["book", "menu"]);
-    sendAlert("[INTERNATIONAL] Online enquiry from wa.me/" + from + ". They said: " + body + ". Rate card already sent. Confirm the slot and send a payment link.");
     postToSheet({ phone: from, mode: "Online", join_from: body, source: "INTL chat" });
-    setHuman(from, 6);
-    notePending(from, "International online enquiry. Rate card already sent.", true);
     return;
   }
   setState(from, "post_location");
@@ -327,7 +324,7 @@ function checkSpecial(from, body) {
   }
   if (CALLBACK_WORDS.some((w) => low.includes(w))) {
     sendTextTo(from, TXT_CALLBACK);
-    sendAlert("[CALLBACK] Requested by wa.me/" + from + ": " + String(body).slice(0, 140));
+    sendAlert("[CALLBACK] Requested by wa.me/" + from + ": " + String(body).slice(0, 140) + ". Call them, then use Slot and pay link if they want to book.");
     setHuman(from, 1);
     notePending(from, "The bot handed this conversation to a person.");
     return true;
@@ -635,15 +632,30 @@ app.get("/inbox", (req, res) => {
   res.send(INBOX_HTML.replace("__PIN__", INBOX_PIN));
 });
 
+function threadFlags(phone) {
+  const paid = paidThreads.get(phone);
+  const wait = pending.get(phone);
+  return {
+    paid: paid ? { amount: paid.amount, currency: paid.currency, at: paid.at } : null,
+    waiting: wait ? { since: wait.at, what: wait.what } : null
+  };
+}
+
 app.get("/inbox/data", (req, res) => {
   if (req.query.pin !== INBOX_PIN) return res.status(403).json({ error: "pin" });
   if (!hydrated && chats.size === 0) hydrateChats();
   const threads = [];
   chats.forEach((msgs, phone) => {
     const w = whoIs(phone);
-    threads.push({ phone: phone, name: w.name, country: w.country, human: isHuman(phone), last: msgs.length ? msgs[msgs.length - 1].ts : 0, msgs: msgs });
+    const f = threadFlags(phone);
+    threads.push({ phone: phone, name: w.name, country: w.country, human: isHuman(phone), last: msgs.length ? msgs[msgs.length - 1].ts : 0, paid: f.paid, waiting: f.waiting, msgs: msgs });
   });
-  threads.sort((a, b) => b.last - a.last);
+  threads.sort((a, b) => {
+    const aw = a.waiting ? 1 : 0;
+    const bw = b.waiting ? 1 : 0;
+    if (aw !== bw) return bw - aw;
+    return b.last - a.last;
+  });
   res.json({ threads: threads });
 });
 
@@ -685,6 +697,8 @@ main { flex:1; display:flex; min-height:0; }
 .th .s { color:#777; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:3px; }
 .th .b { font-size:10px; padding:1px 7px; border-radius:9px; color:#fff; float:right; }
 .b.bot { background:#2e7d32; } .b.hum { background:var(--gld); }
+.b.wait { background:#c62828; }
+.b.paid { background:#1b5e20; }
 #chat { flex:1; display:flex; flex-direction:column; min-width:0; }
 #msgs { flex:1; overflow-y:auto; padding:18px; display:flex; flex-direction:column; gap:6px; }
 .m { max-width:70%; padding:8px 12px; border-radius:12px; font-size:14px; white-space:pre-wrap; word-wrap:break-word; }
@@ -755,6 +769,8 @@ function renderList(){
     const lastMsg = t.msgs.length ? t.msgs[t.msgs.length-1].t : "";
     return '<div class="th ' + (cur === t.phone ? "on" : "") + '" onclick="openChat(\\'' + t.phone + '\\')">' +
       '<span class="b ' + (t.human ? "hum" : "bot") + '">' + (t.human ? "HUMAN" : "BOT") + '</span>' +
+      (t.waiting ? '<span class=\"b wait\">WAITING</span>' : "") +
+      (t.paid ? '<span class=\"b paid\">PAID</span>' : "") +
       '<div class="p">' + (t.name ? t.name.replace(/</g, "&lt;") : "+" + t.phone) + '</div>' + '<div class="s" style="color:#7a7a7a">+' + t.phone + (t.country && t.country !== "India" ? ' \u00b7 ' + t.country : '') + '</div><div class="s">' + lastMsg.replace(/</g, "&lt;") + '</div></div>';
   }).join("");
 }
@@ -1414,7 +1430,7 @@ function rememberLabel(from, label) {
 }
 
 function handleMediaChoice(from, id) {
-  if (id === "media_pay") { rememberLabel(from, "\u{1F4B0} Payment screenshot"); mediaAlertNow(from, "\u{1F4B0} Payment screenshot"); return sendTextTo(from, "Received. Our care team will verify your payment and confirm your slot."); }
+  if (id === "media_pay") { rememberLabel(from, "\u{1F4B0} Payment screenshot"); mediaAlertNow(from, "\u{1F4B0} Payment screenshot"); return sendTextTo(from, "Received, thank you. Our care team will check this against your booking and confirm your slot."); }
   if (id === "media_report") { rememberLabel(from, "\u{1F4C4} Medical report"); mediaAlertNow(from, "\u{1F4C4} Medical report"); return sendTextTo(from, "Received. Your physiotherapist will go through this before your session, so you will not have to explain it all again. Send the other pages here if there are more."); }
   if (id === "media_other") { rememberLabel(from, "\u{1F4CE} File"); mediaAlertNow(from, "\u{1F4CE} File"); return sendTextTo(from, "Received. Our care team will look at this and reply here."); }
   return false;

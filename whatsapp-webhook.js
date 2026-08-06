@@ -798,7 +798,7 @@ async function slotOffer(){
   document.getElementById("txt").value = msg;
 }
 
-function quick(kind){
+async function quick(kind){
   if (!cur) { alert("Open a chat first"); return; }
   if (kind === "slotoffer") { slotOffer(); return; }
   if (kind === "slot") {

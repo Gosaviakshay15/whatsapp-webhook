@@ -1219,6 +1219,7 @@ const RZP_ID = process.env.RAZORPAY_KEY_ID || "";
 const RZP_SECRET = process.env.RAZORPAY_KEY_SECRET || "";
 const RZP_HOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || "";
 const paidThreads = new Map();
+const seenPayments = new Set();
 
 function rzpCreateLink(phone, amount, currency, note, cb) {
   if (!RZP_ID || !RZP_SECRET) { console.log("razorpay keys missing"); return cb(""); }
@@ -1289,6 +1290,16 @@ app.post("/razorpay", (req, res) => {
         phone = String((src.notes && src.notes.patient) || (src.customer && src.customer.contact) || src.contact || "").replace(/[^0-9]/g, "");
       }
     } catch (err) {}
+    let payId = "";
+    try {
+      const pl2 = e.payload && e.payload.payment_link && e.payload.payment_link.entity;
+      const pm2 = e.payload && e.payload.payment && e.payload.payment.entity;
+      payId = String((pm2 && pm2.id) || (pl2 && pl2.id) || "");
+    } catch (err) {}
+    const dedupe = payId || (phone + ":" + amt);
+    if (seenPayments.has(dedupe)) { console.log("duplicate razorpay event ignored " + dedupe); return res.json({ ok: true, duplicate: true }); }
+    seenPayments.add(dedupe);
+    if (seenPayments.size > 500) { const first = seenPayments.values().next().value; seenPayments.delete(first); }
     if (phone) {
       paidThreads.set(phone, { at: Date.now(), amount: amt, currency: cur });
       clearPending(phone);

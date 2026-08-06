@@ -1302,6 +1302,7 @@ app.post("/razorpay", (req, res) => {
     if (seenPayments.size > 500) { const first = seenPayments.values().next().value; seenPayments.delete(first); }
     if (phone) {
       paidThreads.set(phone, { at: Date.now(), amount: amt, currency: cur });
+      postToSheet({ type: "payment", phone: phone, name: String(waNames.get(phone) || ""), amount: amt, currency: cur, pay_id: payId, note: "Paid on WhatsApp" });
       clearPending(phone);
       logChat(phone, "in", "\u{1F4B0} PAID " + cur + " " + amt + " (confirmed by Razorpay)");
       sendAlert("[PAID] " + nameFor(phone) + ", wa.me/" + phone + " has paid " + cur + " " + amt + ". Please block the slot and confirm the booking.");

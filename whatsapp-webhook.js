@@ -1262,6 +1262,34 @@ const RZP_HOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || "";
 const paidThreads = new Map();
 const seenPayments = new Set();
 
+function postToSheetCb(payload, cb) {
+  let u;
+  try { u = new URL(SHEET_URL); } catch (e) { return cb(null); }
+  const body = JSON.stringify(Object.assign({ key: SHEET_KEY }, payload));
+  const req = https.request({ hostname: u.hostname, path: u.pathname + u.search, method: "POST", headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) } }, (res) => {
+    if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
+      res.resume();
+      https.get(res.headers.location, (r2) => collectJson(r2, cb));
+      return;
+    }
+    collectJson(res, cb);
+  });
+  req.on("error", () => cb(null));
+  req.write(body);
+  req.end();
+}
+
+function collectJson(res, cb) {
+  if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
+    res.resume();
+    https.get(res.headers.location, (r2) => collectJson(r2, cb));
+    return;
+  }
+  let d = "";
+  res.on("data", (c) => (d += c));
+  res.on("end", () => { try { cb(JSON.parse(d)); } catch (e) { cb(null); } });
+  res.on("error", () => cb(null));
+}
 function rzpCreateLink(phone, amount, currency, note, cb) {
   if (!RZP_ID || !RZP_SECRET) { console.log("razorpay keys missing"); return cb(""); }
   const payload = JSON.stringify({
@@ -1343,7 +1371,11 @@ app.post("/razorpay", (req, res) => {
     if (seenPayments.size > 500) { const first = seenPayments.values().next().value; seenPayments.delete(first); }
     if (phone) {
       paidThreads.set(phone, { at: Date.now(), amount: amt, currency: cur });
-      postToSheet({ type: "payment", phone: phone, name: String(waNames.get(phone) || ""), amount: amt, currency: cur, pay_id: payId, note: "Paid on WhatsApp" });
+      postToSheetCb({ type: "payment", phone: phone, name: String(waNames.get(phone) || ""), amount: amt, currency: cur, pay_id: payId, note: "Paid on WhatsApp" }, (resp) => {
+        const inv = resp && resp.invoice ? String(resp.invoice) : "";
+        if (!inv) return;
+        waSend({ messaging_product: "whatsapp", to: phone, type: "document", document: { link: inv, filename: "Physiocally invoice.pdf", caption: "Here is your Physiocally invoice. Keep it for your records or for any reimbursement claim." } }, "invoice");
+      });
       clearPending(phone);
       logChat(phone, "in", "\u{1F4B0} PAID " + cur + " " + amt + " (confirmed by Razorpay)");
       sendAlert("[PAID] " + nameFor(phone) + ", wa.me/" + phone + " has paid " + cur + " " + amt + ". Please block the slot and confirm the booking.");

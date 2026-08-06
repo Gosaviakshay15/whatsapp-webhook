@@ -154,6 +154,7 @@ app.post("/webhook", (req, res) => {
         let flow = {};
         try { flow = JSON.parse(it.nfm_reply.response_json); } catch (e) {}
         logChat(from, "in", formSummary(flow));
+        noteStep(from, "form_done", String(flow.mode || ""));
         setTimeout(() => sendTextTo(from, TXT_FORM_ACK), 1200);
         if (flow.overall_rating) {
           postToSheet({ type: "feedback", phone: from, case_id: flow.case_id, physio: flow.physio, case_type: flow.case_type, overall_rating: flow.overall_rating, physio_rating: flow.physio_rating, recommend: flow.recommend, improve: flow.improve });
@@ -207,6 +208,7 @@ app.post("/webhook", (req, res) => {
 
 const menuLoop = new Map();
 function menuOrHuman(from, body) {
+  noteMissed(from, body);
   const n = (menuLoop.get(from) || 0) + 1;
   menuLoop.set(from, n);
   if (n >= 2) {
@@ -222,19 +224,19 @@ function menuOrHuman(from, body) {
 
 function routeSelection(from, id) {
   menuLoop.delete(from);
-  if (id === "menu_charges") return sendModeButtons(from);
-  if (id === "menu_book") return sendFlow(from);
+  if (id === "menu_charges") { noteStep(from, "charges"); return sendModeButtons(from); }
+  if (id === "menu_book") { noteStep(from, "form_open"); return sendFlow(from); }
   if (id === "menu_physios") return sendActions(from, TXT_PHYSIOS, ["book", "menu"]);
   if (id === "menu_condition") { setState(from, "awaiting_condition"); return sendTextTo(from, TXT_ASK_CONDITION); }
   if (id === "mode_clinic") { notePicked(from, "clinic"); return sendActions(from, TXT_CLINIC, ["book", "addr", "menu"]); }
   if (id === "mode_home") { notePicked(from, "home"); return sendActions(from, TXT_HOME, ["book", "menu"]); }
-  if (id === "act_book") return sendFlow(from);
+  if (id === "act_book") { noteStep(from, "form_open"); return sendFlow(from); }
   if (id === "act_menu") return sendMenu(from);
   if (id === "act_addr") return sendActions(from, TXT_ADDRESS, ["book", "menu"]);
   if (id === "mode_online") { setState(from, "awaiting_location"); return sendTextTo(from, TXT_ASK_LOCATION); }
   if (id === "upsell_packs") return sendPackButtons(from);
   if (id === "upsell_next") return sendSingleButtons(from);
-  if (id.indexOf("pick_") === 0) return handlePick(from, id);
+  if (id.indexOf("pick_") === 0) { noteStep(from, "repeat"); return handlePick(from, id); }
   sendMenu(from);
 }
 
@@ -388,12 +390,21 @@ function sendText(to) {
 }
 
 const greeted = new Set();
+const stepSeen = new Map();
 function menuIntro(to) {
+  noteStep(to, "greeted");
   if (greeted.has(to)) return "What would you like to do next?";
   greeted.add(to);
   return "Namaste from *Physiocally* 🙏\nWe are happy to help you feel better.\n\nTap an option below and I will get you the answer right away 👇";
 }
 
+function noteStep(phone, step, mode) {
+  postToSheet({ type: "step", phone: String(phone), name: String(waNames.get(String(phone)) || ""), step: step, mode: mode || "" });
+}
+
+function noteMissed(phone, text) {
+  postToSheet({ type: "missed", phone: String(phone), name: String(waNames.get(String(phone)) || ""), text: String(text || "") });
+}
 function sendMenu(to) {
   waSend({
     messaging_product: "whatsapp",
@@ -1219,6 +1230,7 @@ app.post("/inbox/file", (req, res) => {
   waUploadMedia(buf, mime, fname, (id) => {
     if (!id) return res.status(502).json({ error: "WhatsApp did not accept the file" });
     sendFileTo(phone, id, mime, fname, caption);
+    noteStep(phone, "prescription");
     setHuman(phone, 1);
     clearPending(phone);
     storeMediaRetry(phone, fname, mime, buf, () => {});
@@ -1371,6 +1383,7 @@ app.post("/razorpay", (req, res) => {
     if (seenPayments.size > 500) { const first = seenPayments.values().next().value; seenPayments.delete(first); }
     if (phone) {
       paidThreads.set(phone, { at: Date.now(), amount: amt, currency: cur });
+      noteStep(phone, "paid");
       postToSheetCb({ type: "payment", phone: phone, name: String(waNames.get(phone) || ""), amount: amt, currency: cur, pay_id: payId, note: "Paid on WhatsApp" }, (resp) => {
         const inv = resp && resp.invoice ? String(resp.invoice) : "";
         if (!inv) return;
@@ -1391,6 +1404,7 @@ app.post("/inbox/upsell", (req, res) => {
   if (phone.length < 11) return res.status(400).json({ error: "phone" });
   const nm = String(waNames.get(phone) || "there").split(" ")[0];
   clearPending(phone);
+  noteStep(phone, "upsell");
   sendUpsellButtons(phone, nm);
   res.json({ ok: true });
 });

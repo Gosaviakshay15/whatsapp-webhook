@@ -38,7 +38,7 @@ const FALLBACK_TEXT = "Namaste from Physiocally! We can help with back pain, nec
 const TXT_CLINIC = "🏥 *Consultation at our Andheri West clinic*\n\nTo get you the best results, we offer two starting points:\n\n*Option 1 — Senior Team Assessment: Rs 999*\nA detailed one on one evaluation with our senior physiotherapists, using Dr. Akshay's exact diagnostic framework to find your root cause and build your custom plan.\n🕐 Slots usually available within 24 hours\n\n*Option 2 — Premium Assessment with Dr. Akshay: Rs 3999*\nA one on one evaluation directly with Dr. Akshay.\n🕐 Slots are limited and may require a wait";
 const TXT_HOME = "🏠 *Home visit consultation, anywhere in Mumbai*\n\n🩺 Senior Physiotherapist: *Rs 1499*\nSession charges reduce when a longer treatment plan is needed.\n\nOur physio comes to you with everything needed for assessment and treatment. Dr. Akshay personally consults at the clinic and online.";
 const TXT_ASK_LOCATION = "🌍 Which city and country will you be in during your session? I will send you the charges and slot options for your time zone right away. 🕐";
-const TXT_NOTED = "Noted. Our care team will keep this in mind while confirming your slot.";
+const TXT_NOTED = "Noted, thank you. Our care team will keep this in mind while confirming your slot.";
 const TXT_ONLINE_INDIA = "💻 *Online video consultation from India*\n\nTo get you the best results, we offer two starting points:\n\n*Option 1 — Senior Team Assessment: Rs 999*\nA detailed one on one evaluation with our senior physiotherapists, using Dr. Akshay's exact diagnostic framework to find your root cause and build your custom plan.\n🕐 Slots usually available within 24 hours\n\n*Option 2 — Premium Assessment with Dr. Akshay: Rs 3499*\nA one on one evaluation directly with Dr. Akshay.\n🕐 Dr. Akshay consults at *1 PM and 6 PM IST*, slots are limited\n\n📱 Sessions run on a video call link we share before your slot, and last *40 to 60 minutes*.";
 // ---- INTERNATIONAL RATE CARD ----
 const CURRENCY = [
@@ -306,7 +306,7 @@ const CALLBACK_WORDS = ["call me", "callback", "call back", "phone me", "talk to
 const JOB_WORDS = ["vacancy", "job", "hiring", "career", "internship", "resume", "cv ", "apply for"];
 const TXT_URGENT = "Thank you for sharing this.\n\nWhat you have described needs to be looked at urgently. Our care team will call you shortly to guide you.";
 const TXT_CALLBACK = "Our care team will call you shortly on this number.\n\nYou can also reach the clinic directly on *7304181920* (9 AM to 9 PM).";
-const TXT_JOBS = "Thank you for your interest in working with Physiocally.\n\nPlease send your CV on WhatsApp to *7304181920* and our team will get back to you.";
+const TXT_JOBS = "Thank you for your interest in working with Physiocally.\n\nPlease send your CV to *7304181920* and our team will get back to you.";
 
 function checkSpecial(from, body) {
   const low = String(body || "").toLowerCase();
@@ -1506,7 +1506,15 @@ function sendActions(to, text, opts) {
   }, "actions", () => sendTextTo(to, text));
 }
 
+const AKSHAY_WORDS = ["dr. akshay", "dr akshay", "akshay gosavi", "with akshay", "doctor akshay"];
+const TXT_AKSHAY = "Namaste \u{1F64F}\n\nYes, you can book directly with *Dr. Akshay*.\n\n\u{1F468}\u200D\u2695\uFE0F *Consultation with Dr. Akshay*\nAt our Andheri West clinic: *Rs 3999*\nOnline video call: *Rs 3499*\n\nA one on one evaluation with him, 40 to 60 minutes.\n\u{1F550} He consults at *1 PM and 6 PM IST*, so slots are limited.\n\nIf you would rather start sooner, our senior physiotherapists use the same diagnostic framework and usually have slots within 24 hours at *Rs 999*.";
+
+function wantsAkshay(body) {
+  const low = String(body || "").toLowerCase();
+  return AKSHAY_WORDS.some(function (w) { return low.indexOf(w) !== -1; });
+}
 function checkIntent(from, body) {
+  if (wantsAkshay(body)) { noteStep(from, "charges"); sendActions(from, TXT_AKSHAY, ["book", "menu"]); return true; }
   const low = String(body || "").toLowerCase();
   if (COVER_WORDS.some((w) => low.includes(w))) { sendActions(from, TXT_COVERAGE, ["book", "menu"]); return true; }
   if (ADDR_WORDS.some((w) => low.includes(w))) { sendActions(from, TXT_ADDRESS, ["book", "menu"]); return true; }

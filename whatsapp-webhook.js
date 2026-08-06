@@ -194,8 +194,8 @@ function routeSelection(from, id) {
   if (id === "menu_book") return sendFlow(from);
   if (id === "menu_physios") return sendActions(from, TXT_PHYSIOS, ["book", "menu"]);
   if (id === "menu_condition") { setState(from, "awaiting_condition"); return sendTextTo(from, TXT_ASK_CONDITION); }
-  if (id === "mode_clinic") return sendActions(from, TXT_CLINIC, ["book", "addr", "menu"]);
-  if (id === "mode_home") return sendActions(from, TXT_HOME, ["book", "menu"]);
+  if (id === "mode_clinic") { notePicked(from, "clinic"); return sendActions(from, TXT_CLINIC, ["book", "addr", "menu"]); }
+  if (id === "mode_home") { notePicked(from, "home"); return sendActions(from, TXT_HOME, ["book", "menu"]); }
   if (id === "act_book") return sendFlow(from);
   if (id === "act_menu") return sendMenu(from);
   if (id === "act_addr") return sendActions(from, TXT_ADDRESS, ["book", "menu"]);
@@ -210,6 +210,7 @@ function handleLocation(from, body) {
   const low = body.toLowerCase();
   const isIndia = INDIA_HINTS.some((h) => low.includes(h));
   if (isIndia) {
+    notePicked(from, "online");
     sendActions(from, TXT_ONLINE_INDIA, ["book", "menu"]);
   } else {
     sendTextTo(from, TXT_INTL);
@@ -362,6 +363,10 @@ function sendModeButtons(to) {
   }, "send mode buttons");
 }
 
+const pickedMode = new Map();
+const MODE_LABEL = { clinic: "At our Andheri West clinic", online: "Online video call", home: "Home visit" };
+function notePicked(to, key) { pickedMode.set(to, MODE_LABEL[key] || ""); }
+
 function sendFlow(to) {
   waSend({
     messaging_product: "whatsapp",
@@ -377,7 +382,7 @@ function sendFlow(to) {
           flow_id: FLOW_ID,
           flow_cta: "Book Your Session",
           flow_action: "navigate",
-          flow_action_payload: { screen: "BOOK" },
+          flow_action_payload: { screen: "BOOK", data: { prefill_mode: String(pickedMode.get(to) || "") } },
         },
       },
     },

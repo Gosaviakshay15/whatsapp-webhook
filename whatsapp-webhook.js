@@ -173,9 +173,10 @@ app.post("/webhook", (req, res) => {
           if (flow.join_from) bits.push("joining from " + flow.join_from);
           const tag = exploring ? "[EXPLORING] Booking form" : intl ? "[INTERNATIONAL] Booking form" : "[NEW BOOKING] Booking form";
           const ir = intlRates(from);
-          const ask = exploring ? "They are not ready to book yet. Please send information and keep it warm, do not push for a slot." : intl ? ("Rates: India hours Rs 1499 senior or Rs 3999 with Dr. Akshay. Their local hours " + ir.cur + " " + ir.senior + " senior or " + ir.cur + " " + ir.akshay + " with Dr. Akshay. Ask which city they will be in, then confirm the slot and send a payment link.") : "Please check availability, confirm the slot and share the payment details.";
+          const far = intl && !nearIST(from);
+          const ask = exploring ? "They are not ready to book yet. Please send information and keep it warm, do not push for a slot." : intl ? ("Rates: India hours Rs 1499 senior or Rs 3999 with Dr. Akshay. Their local hours " + ir.cur + " " + ir.senior + " senior or " + ir.cur + " " + ir.akshay + " with Dr. Akshay." + (far ? " Their time zone does not overlap our clinic hours, so a Dr. Akshay booking needs his availability confirmed first." : "") + " Ask which city they will be in, then confirm the slot and send a payment link.") : "Please check availability, confirm the slot and share the payment details.";
           sendAlert(tag + ": " + (flow.patient_name || nameFor(from)) + ", wa.me/" + from + ". " + bits.join(", ") + ". " + ask);
-          notePending(from, exploring ? "They filled the booking form as just exploring." : "They filled the booking form.");
+          notePending(from, exploring ? "They filled the booking form as just exploring." : intl ? "They filled the booking form from outside India." : "They filled the booking form.", intl);
         }
         return;
       }
@@ -237,6 +238,12 @@ function routeSelection(from, id) {
   sendMenu(from);
 }
 
+const IST_FRIENDLY = ["971", "966", "974", "965", "968", "973", "44", "49", "33", "39", "34", "31", "32", "353", "351", "43", "41", "46", "47", "45", "358", "48", "7", "90", "20", "972", "27", "254", "255", "256", "234", "65", "60", "66", "62", "63", "86", "852", "81", "82", "61", "64", "94", "977", "880", "92"];
+function nearIST(phone) {
+  const p = String(phone || "");
+  return IST_FRIENDLY.some(function (c) { return p.indexOf(c) === 0; });
+}
+
 function intlPricingText(phone) {
   const r = intlRates(phone);
   return "\u{1F30D} *Online consultation, wherever you are*\n\n" +
@@ -248,6 +255,7 @@ function intlPricingText(phone) {
     "Senior Physiotherapist: *" + r.cur + " " + r.senior + "*\n" +
     "With Dr. Akshay: *" + r.cur + " " + r.akshay + "*\n\n" +
     "Your physiotherapist works outside clinic hours for that slot, which is the difference. The consultation itself is identical.\n\n" +
+    "Dr. Akshay consults at *1 PM and 6 PM IST*. For a slot outside that, our team checks his availability and confirms before anything is booked.\n\n" +
     "\u{1F4F1} A video call link comes before your slot. Sessions last *40 to 60 minutes*.\n" +
     "\u{1F4B3} Payment by card link in your own currency.";
 }
@@ -262,7 +270,7 @@ function handleLocation(from, body) {
     sendAlert("[INTERNATIONAL] Online enquiry from wa.me/" + from + ". They said: " + body + ". Rate card already sent. Confirm the slot and send a payment link.");
     postToSheet({ phone: from, mode: "Online", join_from: body, source: "INTL chat" });
     setHuman(from, 6);
-    notePending(from, "International online enquiry.");
+    notePending(from, "International online enquiry. Rate card already sent.", true);
     return;
   }
   setState(from, "post_location");
@@ -1136,14 +1144,14 @@ app.post("/inbox/file", (req, res) => {
 
 // ---- NOBODY REPLIED WATCH (45 minutes) ----
 const pending = new Map();
-function notePending(phone, what) { pending.set(String(phone), { at: Date.now(), what: what }); }
+function notePending(phone, what, slow) { pending.set(String(phone), { at: Date.now(), what: what, wait: slow ? 4 * 60 : 45 }); }
 function clearPending(phone) { pending.delete(String(phone)); }
 function checkPending() {
   const now = Date.now();
   pending.forEach((v, k) => {
-    if (now - v.at > 45 * 60 * 1000) {
+    if (now - v.at > (v.wait || 45) * 60 * 1000) {
       pending.delete(k);
-      sendAlert("[NO REPLY 45 MIN] " + nameFor(k) + ", wa.me/" + k + ". " + v.what + " Nobody has replied yet. Please respond now.");
+      sendAlert("[NO REPLY " + (v.wait || 45) + " MIN] " + nameFor(k) + ", wa.me/" + k + ". " + v.what + " Nobody has replied yet. Please respond now.");
     }
   });
 }

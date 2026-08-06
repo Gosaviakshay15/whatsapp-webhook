@@ -35,20 +35,20 @@ const SHEET_KEY = "phy-enq-7xK93qQ2mR8v";
 
 const FALLBACK_TEXT = "Namaste from Physiocally! We can help with back pain, neck pain, sports injuries, post surgery recovery and more. To book a session, reply with your name, preferred mode (clinic, home visit or online) and preferred time. Our care team will confirm your slot right here on WhatsApp. You can also book at https://www.physiocally.com/book";
 
-const TXT_CLINIC = "🏥 *Consultation at our Andheri West clinic*\n\nTo get you the best results, we offer two starting points:\n\n*Option 1 — Senior Team Assessment: Rs 999*\nA detailed one on one evaluation with our senior physiotherapists, using Dr. Akshay's exact diagnostic framework to find your root cause and build your custom plan.\n🕐 Slots usually available within 24 hours\n\n*Option 2 — Premium Assessment with Dr. Akshay: Rs 3999*\nA one on one evaluation directly with Dr. Akshay.\n🕐 Slots are limited and may require a wait\n\nTap *Book a session* below and our care team will confirm your slot right here on WhatsApp ✅";
-const TXT_HOME = "🏠 *Home visit consultation, anywhere in Mumbai*\n\n🩺 Senior Physiotherapist: *Rs 1499*\nSession charges reduce when a longer treatment plan is needed.\n\nOur physio comes to you with everything needed for assessment and treatment. Dr. Akshay personally consults at the clinic and online.\n\nTap *Book a session* below and our care team will confirm your slot right here on WhatsApp ✅";
+const TXT_CLINIC = "🏥 *Consultation at our Andheri West clinic*\n\nTo get you the best results, we offer two starting points:\n\n*Option 1 — Senior Team Assessment: Rs 999*\nA detailed one on one evaluation with our senior physiotherapists, using Dr. Akshay's exact diagnostic framework to find your root cause and build your custom plan.\n🕐 Slots usually available within 24 hours\n\n*Option 2 — Premium Assessment with Dr. Akshay: Rs 3999*\nA one on one evaluation directly with Dr. Akshay.\n🕐 Slots are limited and may require a wait";
+const TXT_HOME = "🏠 *Home visit consultation, anywhere in Mumbai*\n\n🩺 Senior Physiotherapist: *Rs 1499*\nSession charges reduce when a longer treatment plan is needed.\n\nOur physio comes to you with everything needed for assessment and treatment. Dr. Akshay personally consults at the clinic and online.";
 const TXT_ASK_LOCATION = "🌍 Online consultations are available *worldwide*.\n\nSo we can schedule correctly across time zones, which city and country will you be in during your session, and what time suits you *in your local time*? 🕐";
-const TXT_NOTED = "Noted, thank you! Our care team will keep this in mind while confirming your slot.\n\nTap *Book a session* below whenever you are ready and we will lock it in for you.";
-const TXT_ONLINE_INDIA = "💻 *Online video consultation from India*\n\nTo get you the best results, we offer two starting points:\n\n*Option 1 — Senior Team Assessment: Rs 999*\nA detailed one on one evaluation with our senior physiotherapists, using Dr. Akshay's exact diagnostic framework to find your root cause and build your custom plan.\n🕐 Slots usually available within 24 hours\n\n*Option 2 — Premium Assessment with Dr. Akshay: Rs 3499*\nA one on one evaluation directly with Dr. Akshay.\n🕐 Dr. Akshay consults at *1 PM and 6 PM IST*, slots are limited\n\n📱 Sessions run on a video call link we share before your slot, and last *40 to 60 minutes*.\n\nTap *Book a session* below and our care team will confirm your slot right here on WhatsApp ✅";
+const TXT_NOTED = "Noted. Our care team will keep this in mind while confirming your slot.";
+const TXT_ONLINE_INDIA = "💻 *Online video consultation from India*\n\nTo get you the best results, we offer two starting points:\n\n*Option 1 — Senior Team Assessment: Rs 999*\nA detailed one on one evaluation with our senior physiotherapists, using Dr. Akshay's exact diagnostic framework to find your root cause and build your custom plan.\n🕐 Slots usually available within 24 hours\n\n*Option 2 — Premium Assessment with Dr. Akshay: Rs 3499*\nA one on one evaluation directly with Dr. Akshay.\n🕐 Dr. Akshay consults at *1 PM and 6 PM IST*, slots are limited\n\n📱 Sessions run on a video call link we share before your slot, and last *40 to 60 minutes*.";
 const TXT_INTL = "🌍 Thank you!\n\nOur care team personally handles bookings outside India. They will message you here with your consultation details, charges and slots that suit your time zone.\n\n🕐 Our team is available *9 AM to 9 PM IST*";
 const TXT_PHYSIOS = "👨‍⚕️ *Dr. Akshay Gosavi, Founder of Physiocally*\nMasters in Physiotherapy (MUHS)\n10 years of clinical experience\nExpert in accurately diagnosing the root cause of pain\n\n🩺 *Our Senior Physiotherapists*\nQualified, experienced and experts in diagnosing and treating musculoskeletal pain, rated highly by our patients.\n\n⭐ *Physiocally* has delivered over *1,00,000 sessions* since 2022 with a *4.8 star* Google rating.";
 const TXT_ASK_CONDITION = "Tell me what you are dealing with, for example back pain, migraine or knee pain, and I will tell you how physiotherapy can help 💬";
 
-const TXT_FORM_ACK = "Thank you! Your details are with our care team.\n\nOur team will check availability and confirm your slot right here on WhatsApp shortly 🕐";
+const TXT_FORM_ACK = "Got it, your details are with our team.\n\nWe are checking which physiotherapist and time are free for you. Your exact timing comes next, right here.";
 const TXT_UPSELL_PACKS = "To make your treatment more consistent, we have:\n\n📦 *5 Sessions* — Rs 949 per session\n📦 *10 Sessions* — Rs 899 per session\n\n(Advance payment required for package pricing)\n\nPackages help in faster recovery and better results.\n\nWhich one would you like to go ahead with?";
 const TXT_UPSELL_NEXT = "A single follow up session is *Rs 999*.\n\nReply here and our care team will schedule your next session at a time that suits you ✅";
 const TXT_UPSELL_NO = "No problem! Whenever you are ready, just message us here. Wishing you a speedy recovery 💚";
-const COND_CTA = "\n\n📅 Tap *Book a session* below and our physio will assess your case and design your plan.";
+const COND_CTA = "\n\n📅 Our physio will assess your case and design a plan around it.";
 const CONDITIONS = [
   { k: ["vertigo", "dizzy", "dizziness", "giddiness", "bppv", "balance"], t: "Vertigo and giddiness often come from the inner ear or the neck. Our physiotherapists assess the cause and use proven repositioning techniques and balance retraining, and most patients improve quickly once the right cause is identified." },
   { k: ["tmj", "jaw", "jaw pain", "lock jaw", "clicking jaw"], t: "Jaw and TMJ pain responds well to physiotherapy. We release the jaw and neck muscles, correct the movement pattern and guide you on habits that keep the pain from returning." },
@@ -310,6 +310,13 @@ function sendText(to) {
   waSend({ messaging_product: "whatsapp", to, type: "text", text: { preview_url: true, body: FALLBACK_TEXT } }, "send fallback");
 }
 
+const greeted = new Set();
+function menuIntro(to) {
+  if (greeted.has(to)) return "What would you like to do next?";
+  greeted.add(to);
+  return "Namaste from *Physiocally* 🙏\nWe are happy to help you feel better.\n\nTap an option below and I will get you the answer right away 👇";
+}
+
 function sendMenu(to) {
   waSend({
     messaging_product: "whatsapp",
@@ -317,7 +324,7 @@ function sendMenu(to) {
     type: "interactive",
     interactive: {
       type: "list",
-      body: { text: "Namaste from *Physiocally* 🙏\nWe are happy to help you feel better.\n\nTap an option below and I will get you the answer right away 👇" },
+      body: { text: menuIntro(to) },
       action: {
         button: "Choose an option",
         sections: [
@@ -362,7 +369,7 @@ function sendFlow(to) {
     type: "interactive",
     interactive: {
       type: "flow",
-      body: { text: "Great! 🎉 Fill this quick form and our care team will confirm your slot right here on WhatsApp." },
+      body: { text: "Great! 🎉 A few quick details and we will find you a slot." },
       action: {
         name: "flow",
         parameters: {
@@ -1142,6 +1149,12 @@ function nameFor(phone) {
 }
 
 function askMediaType(from, fname, url, kind) {
+  const recent = lastMedia.get(from);
+  if (recent && recent.label && Date.now() - recent.at < 8 * 60 * 1000) {
+    lastMedia.set(from, { fname: fname, url: url, kind: kind, at: Date.now(), label: recent.label });
+    sendAlert("[FILE] " + recent.label + ", another file from " + nameFor(from) + ", wa.me/" + from + " (" + fname + "). Open: " + (url || "please open the Physiocally inbox"));
+    return;
+  }
   pendingMedia.set(from, { fname: fname, url: url, kind: kind, at: Date.now() });
   lastMedia.set(from, { fname: fname, url: url, kind: kind, at: Date.now() });
   waSend({
@@ -1171,10 +1184,15 @@ function mediaAlertNow(from, label) {
   sendAlert("[FILE] " + tag + " from " + who + ", wa.me/" + from + fn + "." + link);
 }
 
+function rememberLabel(from, label) {
+  const p = lastMedia.get(from);
+  if (p) { p.label = label; p.at = Date.now(); lastMedia.set(from, p); }
+}
+
 function handleMediaChoice(from, id) {
-  if (id === "media_pay") { mediaAlertNow(from, "\u{1F4B0} Payment screenshot"); return sendTextTo(from, "Thank you! Our care team will verify your payment and confirm shortly."); }
-  if (id === "media_report") { mediaAlertNow(from, "\u{1F4C4} Medical report"); return sendTextTo(from, "Thank you! Your report is with our team and will be shared with your physiotherapist."); }
-  if (id === "media_other") { mediaAlertNow(from, "\u{1F4CE} File"); return sendTextTo(from, "Thank you! Our care team will look at this and reply here."); }
+  if (id === "media_pay") { rememberLabel(from, "\u{1F4B0} Payment screenshot"); mediaAlertNow(from, "\u{1F4B0} Payment screenshot"); return sendTextTo(from, "Received. Our care team will verify your payment and confirm your slot."); }
+  if (id === "media_report") { rememberLabel(from, "\u{1F4C4} Medical report"); mediaAlertNow(from, "\u{1F4C4} Medical report"); return sendTextTo(from, "Received. Your physiotherapist will go through this before your session, so you will not have to explain it all again. Send the other pages here if there are more."); }
+  if (id === "media_other") { rememberLabel(from, "\u{1F4CE} File"); mediaAlertNow(from, "\u{1F4CE} File"); return sendTextTo(from, "Received. Our care team will look at this and reply here."); }
   return false;
 }
 

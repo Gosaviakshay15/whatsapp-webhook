@@ -991,6 +991,30 @@ function mediaAlert(from, kind, caption) {
 
 
 // ---- UPSELL + REMINDERS (triggered from the sheet) ----
+function upsellRates(phone) {
+  const p = String(phone || "");
+  if (p.indexOf("91") === 0 && p.length === 12) return { cur: "Rs", single: 999, five: 949, ten: 899, intl: false };
+  if (nearIST(p)) return { cur: "Rs", single: 1499, five: 1399, ten: 1299, intl: true };
+  const r = intlRates(p);
+  const base = r.senior;
+  return { cur: r.cur, single: base, five: Math.round(base * 0.88), ten: Math.round(base * 0.76), intl: true };
+}
+
+function money(r, n) { return r.cur === "Rs" ? "Rs " + n : r.cur + " " + n; }
+
+function upsellPacksText(phone) {
+  const r = upsellRates(phone);
+  return "To make your treatment more consistent, we have:\n\n" +
+    "\u{1F4E6} *5 Sessions* \u2014 " + money(r, r.five) + " per session\n" +
+    "\u{1F4E6} *10 Sessions* \u2014 " + money(r, r.ten) + " per session\n\n" +
+    "Package patients get first pick of slots, so you can hold the same time each week.\n\n" +
+    "Which one would you like to go ahead with?";
+}
+
+function upsellNextText(phone) {
+  const r = upsellRates(phone);
+  return "A single follow up session is *" + money(r, r.single) + "*.\n\nTap below and our care team will find you a time that suits you \u2705";
+}
 function sendPackButtons(to) {
   waSend({
     messaging_product: "whatsapp",
@@ -998,14 +1022,14 @@ function sendPackButtons(to) {
     type: "interactive",
     interactive: {
       type: "button",
-      body: { text: TXT_UPSELL_PACKS },
+      body: { text: upsellPacksText(to) },
       action: { buttons: [
         { type: "reply", reply: { id: "pick_5", title: "5 sessions" } },
         { type: "reply", reply: { id: "pick_10", title: "10 sessions" } },
         { type: "reply", reply: { id: "pick_single", title: "Single session" } }
       ] }
     }
-  }, "pack options", () => sendTextTo(to, TXT_UPSELL_PACKS));
+  }, "pack options", () => sendTextTo(to, upsellPacksText(to)));
 }
 
 function sendSingleButtons(to) {
@@ -1015,21 +1039,22 @@ function sendSingleButtons(to) {
     type: "interactive",
     interactive: {
       type: "button",
-      body: { text: TXT_UPSELL_NEXT },
+      body: { text: upsellNextText(to) },
       action: { buttons: [
         { type: "reply", reply: { id: "pick_single", title: "Book my session" } },
         { type: "reply", reply: { id: "upsell_packs", title: "Package options" } }
       ] }
     }
-  }, "single option", () => sendTextTo(to, TXT_UPSELL_NEXT));
+  }, "single option", () => sendTextTo(to, upsellNextText(to)));
 }
 
 function handlePick(from, id) {
-  const label = id === "pick_5" ? "the 5 session package at Rs 949 per session"
-    : id === "pick_10" ? "the 10 session package at Rs 899 per session"
-    : "a single session at Rs 999";
-  sendTextTo(from, "Thank you! Our care team will confirm your slot and share the payment details right here shortly.");
-  sendAlert("[FOLLOW UP] Confirmed: " + nameFor(from) + " has chosen " + label + ". wa.me/" + from + " Please confirm the slot and send the payment details.");
+  const r = upsellRates(from);
+  const label = id === "pick_5" ? ("the 5 session package at " + money(r, r.five) + " per session")
+    : id === "pick_10" ? ("the 10 session package at " + money(r, r.ten) + " per session")
+    : ("a single session at " + money(r, r.single));
+  sendTextTo(from, "Thank you! Our care team will confirm your slot and send you a payment link right here shortly.");
+  sendAlert("[FOLLOW UP] Confirmed: " + nameFor(from) + " has chosen " + label + ". wa.me/" + from + " Use Slot and pay link to confirm the time and take payment.");
   setHuman(from, 2);
 }
 

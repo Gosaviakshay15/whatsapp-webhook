@@ -1506,16 +1506,31 @@ function sendActions(to, text, opts) {
   }, "actions", () => sendTextTo(to, text));
 }
 
-const AKSHAY_WORDS = ["dr. akshay", "dr akshay", "akshay gosavi", "with akshay", "doctor akshay"];
+const AKSHAY_WORDS = ["dr.akshay", "dr. akshay", "dr akshay", "drakshay", "akshay gosavi", "with akshay", "doctor akshay", "akshay sir"];
 const TXT_AKSHAY = "Namaste \u{1F64F}\n\nYes, you can book directly with *Dr. Akshay*.\n\n\u{1F468}\u200D\u2695\uFE0F *Consultation with Dr. Akshay*\nAt our Andheri West clinic: *Rs 3999*\nOnline video call: *Rs 3499*\n\nA one on one evaluation with him, 40 to 60 minutes.\n\u{1F550} He consults at *1 PM and 6 PM IST*, so slots are limited.\n\nIf you would rather start sooner, our senior physiotherapists use the same diagnostic framework and usually have slots within 24 hours at *Rs 999*.";
+
+function firstTouch(to) {
+  if (greeted.has(to)) return false;
+  greeted.add(to);
+  return true;
+}
 
 function wantsAkshay(body) {
   const low = String(body || "").toLowerCase();
   return AKSHAY_WORDS.some(function (w) { return low.indexOf(w) !== -1; });
 }
 function checkIntent(from, body) {
-  if (wantsAkshay(body)) { noteStep(from, "charges"); sendActions(from, TXT_AKSHAY, ["book", "menu"]); return true; }
   const low = String(body || "").toLowerCase();
+  if (wantsAkshay(body)) {
+    noteStep(from, "charges");
+    sendActions(from, TXT_AKSHAY, ["book", "menu"]);
+    return true;
+  }
+  if (firstTouch(from) && BOOK_WORDS.some((w) => low.includes(w))) {
+    noteStep(from, "greeted");
+    sendActions(from, "Namaste from *Physiocally* \u{1F64F}\n\nHappy to help you book a session.\n\nTap below to share a few quick details, or see our charges first.", ["book", "menu"]);
+    return true;
+  }
   if (COVER_WORDS.some((w) => low.includes(w))) { sendActions(from, TXT_COVERAGE, ["book", "menu"]); return true; }
   if (ADDR_WORDS.some((w) => low.includes(w))) { sendActions(from, TXT_ADDRESS, ["book", "menu"]); return true; }
   if (BOOK_WORDS.some((w) => low.includes(w))) { sendFlow(from); return true; }

@@ -726,8 +726,8 @@ button { background:var(--grn); color:#fff; border:0; border-radius:8px; padding
     <div id="msgs"><div id="empty">Select a chat</div></div>
     <div id="bar">
       <button id="togglebot" onclick="toggleBot()" style="display:none">Bot: on</button>
-      <button onclick="quick('payment')" title="Send payment details and QR">Payment details</button>
-      <button onclick="quick('slotoffer')" title="Offer a slot before payment">Slot offer</button>
+      <button onclick="quick('payment')" title="Send bank and UPI details. Use only if the patient cannot pay by link.">Bank details</button>
+      <button onclick="quick('slotoffer')" title="Offer a slot with a payment link. This is the normal way to take payment.">Slot and pay link</button>
       <button onclick="quick('slot')" title="Compose a slot confirmation">Slot confirm</button>
       <button onclick="pickFile()" title="Send a prescription, report or invoice to this patient">Send file</button>
       <button onclick="sendUpsell()" title="Send the follow up offer">Follow up offer</button>
@@ -778,7 +778,7 @@ async function slotOffer(){
   const slot = prompt("Slot, for example Today at 6:00 PM", "");
   if (!slot) return;
   const hold = prompt("Hold the slot until? For example 6 PM today. Leave blank for no hold.", "");
-  const tier = prompt("Amount to charge, number only. 999 senior India, 1499 senior international at India hours, 3499 Dr Akshay online India, 3999 Dr Akshay clinic or international at India hours, 25 senior USD, 90 Dr Akshay USD", "999");
+  const tier = prompt("Amount to charge, number only.  Clinic senior 999  ·  Online Dr Akshay 3499  ·  Clinic Dr Akshay 3999  ·  International India hours 1499 senior or 3999 Dr Akshay  ·  International own hours 25 or 90 in their currency", "");
   if (!tier) return;
   const amount = Number(String(tier).replace(/[^0-9.]/g, ""));
   if (!amount) { alert("That is not a number"); return; }
@@ -806,7 +806,7 @@ async function quick(kind){
     if (!physio) return;
     const slot = prompt("Slot? e.g. Tomorrow 6:00 PM", "");
     if (!slot) return;
-    document.getElementById("txt").value = "Your session is confirmed with *" + physio + "* on *" + slot + "*. Please be ready 5 minutes early. Reply here if you need to reschedule.";
+    document.getElementById("txt").value = "You are all set. Your session is with *" + physio + "* on *" + slot + "*. Please be ready 5 minutes early. Reply here if you need to reschedule.";
     document.getElementById("txt").focus();
     return;
   }
@@ -1091,7 +1091,7 @@ app.post("/alert", (req, res) => {
 
 // ---- SAVED REPLIES + FORM SUMMARY ----
 const QR_URL = "https://drive.google.com/uc?export=view&id=1sEzHDSKGemgfQ9CwKJyi507X-N80GiV8";
-const TXT_PAYMENT = "*Payment details*\n\nAccount Name: Physiocally\nAccount Number: 122505002473\nBank Name: ICICI Bank\nBranch: Andheri Veera Desai Road\nIFSC: ICIC0001225\nUPI ID: physiocallyaccount@icici\n\nPlease share the screenshot after the transaction\n\n📍 *Physiocally*, Andheri Veera Desai Road, Mumbai\nhttps://www.physiocally.com";
+const TXT_PAYMENT = "*Bank transfer or UPI*\n\nAccount Name: Physiocally\nAccount Number: 122505002473\nBank Name: ICICI Bank\nBranch: Andheri Veera Desai Road\nIFSC: ICIC0001225\nUPI ID: physiocallyaccount@icici\n\nOnce you have paid, send us the screenshot here so we can match it to your booking.\n\n📍 *Physiocally*, Andheri Veera Desai Road, Mumbai\nhttps://www.physiocally.com";
 
 function formSummary(flow) {
   if (!flow || typeof flow !== "object") return "[Booking form submitted]";

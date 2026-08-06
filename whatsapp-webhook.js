@@ -141,7 +141,7 @@ app.post("/webhook", (req, res) => {
           if (flow.time_pref) bits.push("prefers " + flow.time_pref);
           if (flow.physio_choice) bits.push(String(flow.physio_choice));
           if (flow.join_from) bits.push("joining from " + flow.join_from);
-          const tag = exploring ? "Booking form JUST EXPLORING" : intl ? "INTERNATIONAL booking form" : "NEW BOOKING FORM";
+          const tag = exploring ? "[EXPLORING] Booking form" : intl ? "[INTERNATIONAL] Booking form" : "[NEW BOOKING] Booking form";
           const ask = exploring ? "They are not ready to book yet. Please send information and keep it warm, do not push for a slot." : intl ? "Please handle this booking personally and share charges in their currency." : "Please check availability, confirm the slot and share the payment details.";
           sendAlert(tag + ": " + (flow.patient_name || nameFor(from)) + ", wa.me/" + from + ". " + bits.join(", ") + ". " + ask);
           notePending(from, exploring ? "They filled the booking form as just exploring." : "They filled the booking form.");
@@ -180,7 +180,7 @@ function menuOrHuman(from, body) {
   if (n >= 2) {
     menuLoop.delete(from);
     sendTextTo(from, "Let me get a person to help you with this. Our care team will reply here shortly.");
-    sendAlert("Bot could not understand " + nameFor(from) + ", wa.me/" + from + ". They said: " + String(body || "a message the bot cannot read").slice(0, 140) + ". Please reply on the clinic chat.");
+    sendAlert("[NEEDS A PERSON] Bot could not understand " + nameFor(from) + ", wa.me/" + from + ". They said: " + String(body || "a message the bot cannot read").slice(0, 140) + ". Please reply on the clinic chat.");
     setHuman(from, 1);
     notePending(from, "The bot could not understand them.");
     return;
@@ -213,7 +213,7 @@ function handleLocation(from, body) {
     sendActions(from, TXT_ONLINE_INDIA, ["book", "menu"]);
   } else {
     sendTextTo(from, TXT_INTL);
-    sendAlert("INTL enquiry: wa.me/" + from + " wants an online session. They said: " + body);
+    sendAlert("[INTERNATIONAL] Online enquiry from wa.me/" + from + " wants an online session. They said: " + body);
     postToSheet({ phone: from, mode: "Online", join_from: body, source: "INTL chat" });
     setHuman(from, 6);
     notePending(from, "International online enquiry.");
@@ -233,21 +233,21 @@ function checkSpecial(from, body) {
   const low = String(body || "").toLowerCase();
   if (JOB_WORDS.some((w) => low.includes(w))) {
     sendTextTo(from, TXT_JOBS);
-    sendAlert("Careers enquiry from wa.me/" + from + ": " + String(body).slice(0, 120));
+    sendAlert("[NON PATIENT] Careers enquiry from wa.me/" + from + ": " + String(body).slice(0, 120));
     setHuman(from, 1);
     notePending(from, "The bot handed this conversation to a person.");
     return true;
   }
   if (RED_FLAGS.some((w) => low.includes(w))) {
     sendTextTo(from, TXT_URGENT);
-    sendAlert("URGENT: possible red flag symptoms from wa.me/" + from + ". Message: " + String(body).slice(0, 160) + " Please call this patient now.");
+    sendAlert("[MEDICAL URGENT] Possible red flag symptoms from wa.me/" + from + ". Message: " + String(body).slice(0, 160) + " Please call this patient now.");
     setHuman(from, 1);
     notePending(from, "The bot handed this conversation to a person.");
     return true;
   }
   if (CALLBACK_WORDS.some((w) => low.includes(w))) {
     sendTextTo(from, TXT_CALLBACK);
-    sendAlert("Callback requested from wa.me/" + from + ": " + String(body).slice(0, 140));
+    sendAlert("[CALLBACK] Requested by wa.me/" + from + ": " + String(body).slice(0, 140));
     setHuman(from, 1);
     notePending(from, "The bot handed this conversation to a person.");
     return true;
@@ -562,7 +562,7 @@ app.post("/inbox/send", (req, res) => {
   const phone = String(b.phone || "").replace(/[^0-9]/g, "");
   const text = String(b.text || "").trim();
   if (phone.length < 11 || !text) return res.status(400).json({ error: "phone and text required" });
-  waSend({ messaging_product: "whatsapp", to: phone, type: "text", text: { preview_url: false, body: text } }, "inbox send", () => sendAlert("Reply to wa.me/" + phone + " could not be delivered. The 24 hour chat window may be closed."));
+  waSend({ messaging_product: "whatsapp", to: phone, type: "text", text: { preview_url: false, body: text } }, "inbox send", () => sendAlert("[DELIVERY FAILED] Reply to wa.me/" + phone + " could not be delivered. The 24 hour chat window may be closed."));
   setHuman(phone, 1);
   clearPending(phone);
   res.json({ ok: true });
@@ -921,7 +921,7 @@ function handlePick(from, id) {
     : id === "pick_10" ? "the 10 session package at Rs 899 per session"
     : "a single session at Rs 999";
   sendTextTo(from, "Thank you! Our care team will confirm your slot and share the payment details right here shortly.");
-  sendAlert("Follow up confirmed: " + nameFor(from) + " has chosen " + label + ". wa.me/" + from + " Please confirm the slot and send the payment details.");
+  sendAlert("[FOLLOW UP] Confirmed: " + nameFor(from) + " has chosen " + label + ". wa.me/" + from + " Please confirm the slot and send the payment details.");
   setHuman(from, 2);
 }
 
@@ -938,7 +938,7 @@ function sendUpsellButtons(to, name) {
         { type: "reply", reply: { id: "upsell_packs", title: "Package options" } }
       ] }
     }
-  }, "upsell", () => sendAlert("Upsell message could not be delivered to wa.me/" + to + ". Please follow up manually."));
+  }, "upsell", () => sendAlert("[FOLLOW UP] Could not send the offer could not be delivered to wa.me/" + to + ". Please follow up manually."));
 }
 
 app.post("/upsell", (req, res) => {
@@ -1086,7 +1086,7 @@ function checkPending() {
   pending.forEach((v, k) => {
     if (now - v.at > 45 * 60 * 1000) {
       pending.delete(k);
-      sendAlert("WAITING 45 MINUTES: " + nameFor(k) + ", wa.me/" + k + ". " + v.what + " Nobody has replied yet. Please respond now.");
+      sendAlert("[NO REPLY 45 MIN] " + nameFor(k) + ", wa.me/" + k + ". " + v.what + " Nobody has replied yet. Please respond now.");
     }
   });
 }
@@ -1168,7 +1168,7 @@ function mediaAlertNow(from, label) {
   const tag = label || "File";
   const link = p && p.url ? " Open: " + p.url : " Please open the Physiocally inbox to view this file.";
   const fn = p && p.fname ? " (" + p.fname + ")" : "";
-  sendAlert(tag + " from " + who + ", wa.me/" + from + fn + "." + link);
+  sendAlert("[FILE] " + tag + " from " + who + ", wa.me/" + from + fn + "." + link);
 }
 
 function handleMediaChoice(from, id) {

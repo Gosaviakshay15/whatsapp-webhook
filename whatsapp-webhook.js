@@ -778,7 +778,7 @@ async function slotOffer(){
   const slot = prompt("Slot, for example Today at 6:00 PM", "");
   if (!slot) return;
   const hold = prompt("Hold the slot until? For example 6 PM today. Leave blank for no hold.", "");
-  const tier = prompt("Amount to charge, number only.\n999 senior, India\n1499 senior, international at India hours\n3499 Dr Akshay online, India\n3999 Dr Akshay clinic, or international at India hours\n25 senior, USD\n90 Dr Akshay, USD", "999");
+  const tier = prompt("Amount to charge, number only. 999 senior India, 1499 senior international at India hours, 3499 Dr Akshay online India, 3999 Dr Akshay clinic or international at India hours, 25 senior USD, 90 Dr Akshay USD", "999");
   if (!tier) return;
   const amount = Number(String(tier).replace(/[^0-9.]/g, ""));
   if (!amount) { alert("That is not a number"); return; }

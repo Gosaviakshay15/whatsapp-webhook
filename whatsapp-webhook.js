@@ -80,16 +80,16 @@ const TXT_UPSELL_NEXT = "A single follow up session is *Rs 999*.\n\nReply here a
 const TXT_UPSELL_NO = "No problem! Whenever you are ready, just message us here. Wishing you a speedy recovery 💚";
 const COND_CTA = "\n\n📅 Our physio will assess your case and design a plan around it.";
 const CONDITIONS = [
-  { k: ["vertigo", "dizzy", "dizziness", "giddiness", "bppv", "balance"], t: "Vertigo and giddiness often come from the inner ear or the neck. Our physiotherapists assess the cause and use proven repositioning techniques and balance retraining, and most patients improve quickly once the right cause is identified." },
-  { k: ["tmj", "jaw", "jaw pain", "lock jaw", "clicking jaw"], t: "Jaw and TMJ pain responds well to physiotherapy. We release the jaw and neck muscles, correct the movement pattern and guide you on habits that keep the pain from returning." },
-  { k: ["migraine", "headache", "head ache"], t: "Many headaches and migraines have a neck related trigger. Physiotherapy relieves muscle tension and stiffness in the neck and shoulders and can reduce how often and how strongly they occur." },
-  { k: ["neck", "cervical"], t: "Neck pain and stiffness respond well to physiotherapy. We use targeted movement, deep neck muscle activation and workstation guidance to relieve pain at its source." },
-  { k: ["sciatica", "disc", "numbness", "nerve", "leg pain"], t: "Sciatica, slip disc related pain and leg numbness are among the most common conditions we treat. Directional movement and core strengthening relieve nerve pressure naturally." },
-  { k: ["back", "spine", "lumbar"], t: "Back pain responds very well to physiotherapy. Guided movement, core activation and posture correction reduce pain and prevent it from coming back, without medicines." },
-  { k: ["knee", "arthritis"], t: "Knee pain, early arthritis and ligament issues improve with strengthening and movement retraining. Physiotherapy helps you walk, climb and exercise without pain." },
-  { k: ["shoulder", "frozen", "rotator"], t: "Frozen shoulder, rotator cuff pain and stiffness respond well to guided mobilisation and strengthening. Most patients regain full use of the arm with a structured plan." },
-  { k: ["surgery", "operation", "post op", "postop", "replacement"], t: "After surgery, the right rehabilitation decides how fully you recover. Our physios design stage wise programs for knee, hip, spine, shoulder and other surgeries." },
-  { k: ["sport", "sprain", "ligament", "acl", "injury"], t: "From sprains to overuse injuries, physiotherapy gets you back to your sport safely and builds strength so the injury does not repeat." },
+  { k: ["vertigo", "dizzy", "dizziness", "giddiness", "bppv", "balance"], t: "When the room spins as you turn over in bed or sit up too quickly, it is unsettling in a way that is hard to explain to anyone else.\n\nVertigo has several possible causes, and once the right one is identified it is very treatable." },
+  { k: ["tmj", "jaw", "jaw pain", "lock jaw", "clicking jaw"], t: "The click when you yawn, the ache while chewing, and the tightness that spreads up the side of your face by evening.\n\nThe jaw rarely works alone, the neck is usually involved too, and it eases well once both are treated." },
+  { k: ["migraine", "headache", "head ache"], t: "Many people find their headaches start with tightness in the neck and shoulders, before the head pain even begins.\n\nWhen the neck is part of the problem, treating it can reduce how often the headaches come." },
+  { k: ["neck", "cervical"], t: "The stiffness through the day, and the ache that settles in by evening, is something most people put up with far longer than they need to.\n\nNeck pain usually responds well once we understand what is causing it in your case." },
+  { k: ["sciatica", "disc", "numbness", "nerve", "leg pain"], t: "When the pain runs down the leg, or the foot goes numb and tingling, the problem is rarely where it hurts. The nerve is being pressed higher up.\n\nThis responds very well without medicines once the pressure is taken off." },
+  { k: ["back", "spine", "lumbar"], t: "Whether it is the ache that builds through the day or the catch when you bend to pick something up, back pain is the most common thing we treat and among the most treatable.\n\nMost people improve without medicines." },
+  { k: ["knee", "arthritis"], t: "Stairs and standing up after sitting a while are usually when knees make themselves known.\n\nKnee pain responds well to the right strengthening at almost any age, once we see what is going on." },
+  { k: ["shoulder", "frozen", "rotator"], t: "When lifting your arm up or reaching behind you becomes something you think about first, and sleeping on that side is hard.\n\nShoulders take time, but they improve well with the right plan." },
+  { k: ["surgery", "operation", "post op", "postop", "replacement"], t: "The surgery is done. What happens over the next few months decides how completely you get back to normal.\n\nRecovery works in stages, and a plan built for your specific surgery makes a real difference to where you end up." },
+  { k: ["sport", "sprain", "ligament", "acl", "injury"], t: "Getting back is one thing. Not getting injured again is the harder part.\n\nWe build the strength back properly before you return, so you are not caught out by the same thing." },
 ];
 const COND_FALLBACK = "Physiotherapy helps with a wide range of muscle, joint and nerve conditions. Our physio will personally review your case in the consultation and guide you on how much it can help you.";
 
@@ -171,6 +171,7 @@ app.post("/webhook", (req, res) => {
         logChat(from, "in", formSummary(flow));
         noteStep(from, "form_done", String(flow.mode || ""));
         setTimeout(() => sendTextTo(from, TXT_FORM_ACK), 1200);
+        if (!sawPrice.has(String(from || ""))) { setTimeout(function () { sendActions(from, TXT_AFTER_FORM, ["charges", "menu"]); }, 1500); }
         if (flow.overall_rating) {
           postToSheet({ type: "feedback", phone: from, case_id: flow.case_id, physio: flow.physio, case_type: flow.case_type, overall_rating: flow.overall_rating, physio_rating: flow.physio_rating, recommend: flow.recommend, improve: flow.improve });
         } else {
@@ -350,6 +351,7 @@ function checkSpecial(from, body) {
   return false;
 }
 
+const TXT_AFTER_FORM = "While our team checks the calendar, you can see what a session costs.";
 const TXT_COMPLEX = "\uD83D\uDE4F Thank you for sharing all of that.\n\nThat is a long time to keep managing this, and when other areas start joining in it usually means the original issue was never fully settled.\n\nThis is treatable. Our physiotherapist will read your full history before your session, so you are not explaining it all over again.";
 function handleCondition(from, body) {
   if (checkSpecial(from, body)) return;
@@ -365,7 +367,7 @@ function handleCondition(from, body) {
     sendActions(from, TXT_COMPLEX + COND_CTA, ["book", "charges"]);
     return;
   }
-  sendActions(from, (hit ? hit.t : COND_FALLBACK) + COND_CTA, ["book", "menu"]);
+  sendActions(from, (hit ? hit.t : COND_FALLBACK) + COND_CTA, ["charges", "book", "menu"]);
 }
 
 function waSend(payload, label, onFail) {
@@ -433,6 +435,7 @@ function noteMissed(phone, text) {
   postToSheet({ type: "missed", phone: String(phone), name: String(waNames.get(String(phone)) || ""), text: String(text || "") });
 }
 function chargesLead(phone) {
+  sawPrice.add(String(phone || ""));
   return saidCond.has(String(phone || "")) ? "\uD83D\uDCAC For what you have described, here is what a first session looks like.\n\n" : "";
 }
 function sendMenu(to) {
@@ -623,6 +626,7 @@ app.listen(PORT, () => {
 
 // ---- MINI INBOX (manual chat as the clinic number) ----
 const saidCond = new Map();
+const sawPrice = new Set();
 const igLeads = new Set();
 function leadSource(phone) {
   return igLeads.has(String(phone || "")) ? "Instagram Dr Akshay" : "Chat only";

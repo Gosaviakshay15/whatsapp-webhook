@@ -308,9 +308,10 @@ function handleLocation(from, body) {
   if (isIndia) {
     notePicked(from, "online");
     sendActions(from, TXT_ONLINE_INDIA, ["book", "menu"]);
+    postToSheet({ phone: from, name: String(waNames.get(from) || ""), mode: "Online", join_from: body, source: leadSource(from) });
   } else {
     sendActions(from, intlPricingText(from), ["book", "menu"]);
-    postToSheet({ phone: from, name: String(waNames.get(from) || ""), mode: "Online", join_from: body, source: "Chat only" });
+    postToSheet({ phone: from, name: String(waNames.get(from) || ""), mode: "Online", join_from: body, source: leadSource(p) });
     return;
   }
   setState(from, "post_location");
@@ -607,6 +608,10 @@ app.listen(PORT, () => {
 });
 
 // ---- MINI INBOX (manual chat as the clinic number) ----
+const igLeads = new Set();
+function leadSource(phone) {
+  return igLeads.has(String(phone || "")) ? "Instagram Dr Akshay" : "Chat only";
+}
 const leadLogged = new Set();
 function noteLead(phone) {
   const p = String(phone || "");
@@ -1548,6 +1553,7 @@ function wantsAkshay(body) {
 function checkIntent(from, body) {
   const low = String(body || "").toLowerCase();
   if (wantsAkshay(body)) {
+    igLeads.add(String(from || ""));
     if (firstTouch(from)) {
       noteStep(from, "greeted");
       sendTextTo(from, "Namaste \u{1F64F}\n\nYes, *Dr. Akshay* consults personally at our Andheri West clinic and on video call.\n\nBefore we book, have a quick look at what we do and what it costs \u{1F447}");

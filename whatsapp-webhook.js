@@ -607,8 +607,17 @@ app.listen(PORT, () => {
 });
 
 // ---- MINI INBOX (manual chat as the clinic number) ----
+const leadLogged = new Set();
+function noteLead(phone) {
+  const p = String(phone || "");
+  if (!p || leadLogged.has(p)) return;
+  leadLogged.add(p);
+  postToSheet({ phone: p, name: String(waNames.get(p) || ""), source: "Chat only" });
+}
+
 function logChat(phone, dir, text) {
   if (!phone) return;
+  if (dir === "in") noteLead(phone);
   let a = chats.get(phone);
   if (!a) { a = []; chats.set(phone, a); }
   a.push({ d: dir, t: String(text || "").slice(0, 1000), ts: Date.now() });

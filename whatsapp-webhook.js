@@ -243,8 +243,8 @@ function routeSelection(from, id) {
   if (id === "menu_book") { noteStep(from, "form_open"); return sendFlow(from); }
   if (id === "menu_physios") return sendActions(from, TXT_PHYSIOS, ["book", "menu"]);
   if (id === "menu_condition") { setState(from, "awaiting_condition"); return sendTextTo(from, TXT_ASK_CONDITION); }
-  if (id === "mode_clinic") { notePicked(from, "clinic"); return sendActions(from, TXT_CLINIC, ["book", "addr", "menu"]); }
-  if (id === "mode_home") { notePicked(from, "home"); return sendActions(from, TXT_HOME, ["book", "menu"]); }
+  if (id === "mode_clinic") { notePicked(from, "clinic"); return sendActions(from, chargesLead(from) + TXT_CLINIC, ["book", "addr", "menu"]); }
+  if (id === "mode_home") { notePicked(from, "home"); return sendActions(from, chargesLead(from) + TXT_HOME, ["book", "menu"]); }
   if (id === "act_book") { noteStep(from, "form_open"); return sendFlow(from); }
   if (id === "act_menu") return sendMenu(from);
   if (id === "act_addr") return sendActions(from, TXT_ADDRESS, ["book", "menu"]);
@@ -307,10 +307,10 @@ function handleLocation(from, body) {
   const isIndia = placeIsIndia(body, from);
   if (isIndia) {
     notePicked(from, "online");
-    sendActions(from, TXT_ONLINE_INDIA, ["book", "menu"]);
+    sendActions(from, chargesLead(from) + TXT_ONLINE_INDIA, ["book", "menu"]);
     postToSheet({ phone: from, name: String(waNames.get(from) || ""), mode: "Online", join_from: body, source: leadSource(from) });
   } else {
-    sendActions(from, intlPricingText(from), ["book", "menu"]);
+    sendActions(from, chargesLead(from) + intlPricingText(from), ["book", "menu"]);
     postToSheet({ phone: from, name: String(waNames.get(from) || ""), mode: "Online", join_from: body, source: leadSource(p) });
     return;
   }
@@ -355,9 +355,11 @@ function handleCondition(from, body) {
   if (checkSpecial(from, body)) return;
   const low = body.toLowerCase();
   const hit = CONDITIONS.find((c) => c.k.some((k) => low.includes(k)));
+  if (hit) saidCond.set(String(from || ""), true);
   const lowC = String(body || "").toLowerCase();
   const allHits = CONDITIONS.filter(function (c) { return c.k.some(function (k) { return lowC.indexOf(k) >= 0; }); });
   if (allHits.length >= 2 || lowC.length > 200) {
+    saidCond.set(String(from || ""), true);
     noteMissed(from, "COMPLEX " + allHits.length + " conditions | " + String(body || "").slice(0, 300));
     sendAlert("[DETAILED HISTORY] wa.me/" + from + " described " + allHits.length + " areas. The bot has replied and kept the booking open. Read the chat before their session. " + String(body || "").slice(0, 220));
     sendActions(from, TXT_COMPLEX + COND_CTA, ["book", "charges"]);
@@ -430,6 +432,9 @@ function noteStep(phone, step, mode) {
 function noteMissed(phone, text) {
   postToSheet({ type: "missed", phone: String(phone), name: String(waNames.get(String(phone)) || ""), text: String(text || "") });
 }
+function chargesLead(phone) {
+  return saidCond.has(String(phone || "")) ? "\uD83D\uDCAC For what you have described, here is what a first session looks like.\n\n" : "";
+}
 function sendMenu(to) {
   waSend({
     messaging_product: "whatsapp",
@@ -444,10 +449,10 @@ function sendMenu(to) {
           {
             title: "Physiocally",
             rows: [
+          { id: "menu_condition", title: "What is your concern", description: "Tell us in your own words and we will guide you" },
               { id: "menu_charges", title: "Charges and booking" },
               { id: "menu_book", title: "Book a session" },
               { id: "menu_physios", title: "About our physios" },
-              { id: "menu_condition", title: "Ask about a condition" },
             ],
           },
         ],
@@ -617,6 +622,7 @@ app.listen(PORT, () => {
 });
 
 // ---- MINI INBOX (manual chat as the clinic number) ----
+const saidCond = new Map();
 const igLeads = new Set();
 function leadSource(phone) {
   return igLeads.has(String(phone || "")) ? "Instagram Dr Akshay" : "Chat only";

@@ -350,10 +350,21 @@ function checkSpecial(from, body) {
   return false;
 }
 
+const TXT_COMPLEX = "\uD83D\uDE4F Thank you for explaining this in detail.\n\nThere is more than one thing going on here, so I would rather our physiotherapist read this properly than give you a general answer.\n\nThey will go through what you have written and reply here shortly.";
 function handleCondition(from, body) {
   if (checkSpecial(from, body)) return;
   const low = body.toLowerCase();
   const hit = CONDITIONS.find((c) => c.k.some((k) => low.includes(k)));
+  const lowC = String(body || "").toLowerCase();
+  const allHits = CONDITIONS.filter(function (c) { return c.k.some(function (k) { return lowC.indexOf(k) >= 0; }); });
+  if (allHits.length >= 2 || lowC.length > 200) {
+    noteMissed(from, "COMPLEX " + allHits.length + " conditions | " + String(body || "").slice(0, 300));
+    sendTextTo(from, TXT_COMPLEX);
+    sendAlert("[NEEDS A PERSON] Detailed history from wa.me/" + from + " matching " + allHits.length + " conditions. Please read the chat and reply. " + String(body || "").slice(0, 250));
+    setHuman(from, 4);
+    notePending(from, "They sent a detailed history and are waiting for a physio to read it.", false);
+    return;
+  }
   sendActions(from, (hit ? hit.t : COND_FALLBACK) + COND_CTA, ["book", "menu"]);
 }
 

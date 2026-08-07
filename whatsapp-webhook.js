@@ -350,7 +350,7 @@ function checkSpecial(from, body) {
   return false;
 }
 
-const TXT_COMPLEX = "\uD83D\uDE4F Thank you for explaining this in detail.\n\nThere is more than one thing going on here, so I would rather our physiotherapist read this properly than give you a general answer.\n\nThey will go through what you have written and reply here shortly.";
+const TXT_COMPLEX = "\uD83D\uDE4F Thank you for sharing all of that.\n\nThat is a long time to keep managing this, and when other areas start joining in it usually means the original issue was never fully settled.\n\nThis is treatable. Our physiotherapist will read your full history before your session, so you are not explaining it all over again.";
 function handleCondition(from, body) {
   if (checkSpecial(from, body)) return;
   const low = body.toLowerCase();
@@ -359,10 +359,8 @@ function handleCondition(from, body) {
   const allHits = CONDITIONS.filter(function (c) { return c.k.some(function (k) { return lowC.indexOf(k) >= 0; }); });
   if (allHits.length >= 2 || lowC.length > 200) {
     noteMissed(from, "COMPLEX " + allHits.length + " conditions | " + String(body || "").slice(0, 300));
-    sendTextTo(from, TXT_COMPLEX);
-    sendAlert("[NEEDS A PERSON] Detailed history from wa.me/" + from + " matching " + allHits.length + " conditions. Please read the chat and reply. " + String(body || "").slice(0, 250));
-    setHuman(from, 4);
-    notePending(from, "They sent a detailed history and are waiting for a physio to read it.", false);
+    sendAlert("[DETAILED HISTORY] wa.me/" + from + " described " + allHits.length + " areas. The bot has replied and kept the booking open. Read the chat before their session. " + String(body || "").slice(0, 220));
+    sendActions(from, TXT_COMPLEX + COND_CTA, ["book", "charges"]);
     return;
   }
   sendActions(from, (hit ? hit.t : COND_FALLBACK) + COND_CTA, ["book", "menu"]);

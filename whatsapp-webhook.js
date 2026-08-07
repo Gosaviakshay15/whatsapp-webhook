@@ -93,7 +93,22 @@ const CONDITIONS = [
 ];
 const COND_FALLBACK = "Physiotherapy helps with a wide range of muscle, joint and nerve conditions. Our physio will personally review your case in the consultation and guide you on how much it can help you.";
 
-const INDIA_HINTS = ["india", "mumbai", "bombay", "delhi", "pune", "bangalore", "bengaluru", "hyderabad", "chennai", "kolkata", "ahmedabad", "jaipur", "thane", "navi", "nagpur", "indore", "surat", "lucknow", "goa", "kochi", "cochin", "chandigarh", "noida", "gurgaon", "gurugram", "bhopal", "patna", "kanpur", "vadodara", "nashik", "rajkot", "andheri"];
+const INDIA_HINTS = ["india","bharat","mumbai","bombay","delhi","pune","bangalore","bengaluru","hyderabad","chennai","kolkata","calcutta","ahmedabad","jaipur","thane","nagpur","indore","surat","lucknow","goa","kochi","cochin","chandigarh","noida","gurgaon","gurugram","bhopal","patna","kanpur","vadodara","nashik","rajkot","andheri","punjab","ludhiana","amritsar","jalandhar","patiala","mohali","haryana","faridabad","panipat","kerala","trivandrum","thiruvananthapuram","kozhikode","calicut","thrissur","kannur","kollam","alappuzha","tamil","tamilnadu","coimbatore","madurai","trichy","tiruchirappalli","salem","erode","tirupur","vellore","thanjavur","karnataka","mysore","mysuru","mangalore","hubli","belgaum","gulbarga","davangere","shimoga","andhra","telangana","vijayawada","visakhapatnam","vizag","guntur","nellore","tirupati","warangal","karimnagar","nizamabad","rajahmundry","kakinada","maharashtra","aurangabad","solapur","kolhapur","amravati","nanded","sangli","jalgaon","akola","latur","ahmednagar","satara","ratnagiri","dombivli","kalyan","vasai","virar","panvel","borivali","dadar","bandra","malad","goregaon","kandivali","chembur","ghatkopar","powai","worli","colaba","juhu","versova","santacruz","khar","mulund","bhandup","sion","matunga","byculla","wadala","kurla","marol","jogeshwari","dahisar","bhayandar","ulhasnagar","ambernath","badlapur","gujarat","bhavnagar","jamnagar","junagadh","gandhinagar","anand","bharuch","navsari","valsad","vapi","rajasthan","jodhpur","udaipur","kota","ajmer","bikaner","alwar","bhilwara","sikar","varanasi","banaras","agra","meerut","allahabad","prayagraj","bareilly","aligarh","moradabad","saharanpur","gorakhpur","jhansi","mathura","ghaziabad","bihar","gaya","bhagalpur","muzaffarpur","darbhanga","jharkhand","ranchi","jamshedpur","dhanbad","bokaro","bengal","howrah","durgapur","asansol","siliguri","darjeeling","odisha","orissa","bhubaneswar","cuttack","rourkela","puri","berhampur","assam","guwahati","dibrugarh","silchar","jorhat","meghalaya","shillong","manipur","imphal","nagaland","kohima","tripura","agartala","mizoram","aizawl","arunachal","sikkim","gangtok","uttarakhand","dehradun","haridwar","rishikesh","nainital","haldwani","roorkee","himachal","shimla","manali","dharamshala","solan","jammu","kashmir","srinagar","udhampur","leh","ladakh","chhattisgarh","raipur","bilaspur","bhilai","korba","gwalior","jabalpur","ujjain","sagar","rewa","satna","dewas","ratlam","pondicherry","puducherry","andaman","nicobar","daman","diu","silvassa","dadra"];
+const FOREIGN_HINTS = ["usa","us","united states","america","american","canada","canadian","uk","united kingdom","england","britain","british","london","scotland","ireland","dubai","uae","abu dhabi","sharjah","ajman","emirates","qatar","doha","kuwait","bahrain","oman","muscat","saudi","riyadh","jeddah","dammam","australia","sydney","melbourne","brisbane","perth","new zealand","auckland","singapore","malaysia","kuala lumpur","indonesia","jakarta","thailand","bangkok","philippines","manila","vietnam","hong kong","japan","tokyo","korea","seoul","china","shanghai","beijing","taiwan","germany","berlin","munich","frankfurt","france","paris","italy","rome","milan","spain","madrid","barcelona","portugal","lisbon","netherlands","amsterdam","belgium","brussels","switzerland","zurich","geneva","austria","vienna","sweden","stockholm","norway","oslo","denmark","copenhagen","finland","poland","warsaw","czech","prague","greece","athens","russia","moscow","turkey","istanbul","israel","tel aviv","south africa","johannesburg","cape town","kenya","nairobi","nigeria","lagos","ghana","tanzania","uganda","ethiopia","egypt","cairo","morocco","brazil","sao paulo","argentina","buenos aires","chile","santiago","colombia","bogota","mexico","peru","lima","nepal","kathmandu","sri lanka","colombo","bangladesh","dhaka","pakistan","karachi","lahore","maldives","bhutan","myanmar","afghanistan","fiji","mauritius","seychelles","luxembourg","iceland","hungary","romania","bulgaria","croatia","serbia","ukraine","kazakhstan","uzbekistan","azerbaijan","armenia","cyprus","malta","jordan","lebanon","iraq","iran","tehran","yemen","syria","libya","tunisia","algeria","sudan","zambia","zimbabwe","botswana","namibia","malawi","rwanda","senegal","cameroon","angola","mozambique"];
+const LOCALITY_SUFFIX = ["bazaar","gaon","colony","nagar","pura","puram","wadi","chowk","road","marg","galli","peth","bavi","pally","halli","palya","kunj","vihar","enclave","sector","phase","layout","extension","society","chawl","market"];
+const NOT_INDIA_HINTS = ["outside india","not in india","out of india","abroad","overseas","not india","non india","outside of india"];
+function placeIsIndia(body, phone) {
+  const s = " " + String(body || "").toLowerCase().replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim() + " ";
+  const w = (a) => a.some((x) => s.indexOf(" " + x + " ") >= 0);
+  if (w(NOT_INDIA_HINTS)) return false;
+  if (w(INDIA_HINTS)) return true;
+  const frn = w(FOREIGN_HINTS);
+  if (frn && w(LOCALITY_SUFFIX)) return true;
+  if (frn) return false;
+  const p = String(phone || "");
+  if (p.indexOf("91") === 0 && p.length === 12) return true;
+  return false;
+}
 
 function postToSheet(obj) {
   try {
@@ -289,7 +304,7 @@ function noteCountry(from, body) {
 function handleLocation(from, body) {
   noteCountry(from, body);
   const low = body.toLowerCase();
-  const isIndia = INDIA_HINTS.some((h) => low.includes(h));
+  const isIndia = placeIsIndia(body, from);
   if (isIndia) {
     notePicked(from, "online");
     sendActions(from, TXT_ONLINE_INDIA, ["book", "menu"]);

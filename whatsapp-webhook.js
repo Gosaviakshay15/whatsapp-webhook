@@ -174,7 +174,7 @@ app.post("/webhook", (req, res) => {
         if (flow.overall_rating) {
           postToSheet({ type: "feedback", phone: from, case_id: flow.case_id, physio: flow.physio, case_type: flow.case_type, overall_rating: flow.overall_rating, physio_rating: flow.physio_rating, recommend: flow.recommend, improve: flow.improve });
         } else {
-          postToSheet({ phone: from, name: flow.patient_name, mode: flow.mode, join_from: flow.join_from, time_pref: flow.time_pref, physio_choice: flow.physio_choice, condition: flow.condition, start_when: flow.start_when, source: flow.source });
+          postToSheet({ phone: from, name: flow.patient_name, mode: flow.mode, join_from: flow.join_from, time_pref: flow.time_pref, physio_choice: flow.physio_choice, condition: flow.condition, start_when: flow.start_when, source: "Booking form" });
           if (flow.patient_name) patientNames.set(from, String(flow.patient_name).trim());
           const jf = String(flow.join_from || "").toLowerCase();
           const sw = String(flow.start_when || "").toLowerCase();
@@ -310,7 +310,7 @@ function handleLocation(from, body) {
     sendActions(from, TXT_ONLINE_INDIA, ["book", "menu"]);
   } else {
     sendActions(from, intlPricingText(from), ["book", "menu"]);
-    postToSheet({ phone: from, mode: "Online", join_from: body, source: "INTL chat" });
+    postToSheet({ phone: from, name: String(waNames.get(from) || ""), mode: "Online", join_from: body, source: "Chat only" });
     return;
   }
   setState(from, "post_location");

@@ -598,7 +598,7 @@ function logChat(phone, dir, text) {
   if (!a) { a = []; chats.set(phone, a); }
   a.push({ d: dir, t: String(text || "").slice(0, 1000), ts: Date.now() });
   if (a.length > 200) a.splice(0, a.length - 200);
-  postToSheet({ type: "chat", phone: phone, dir: dir, text: String(text || "").slice(0, 500), name: String(waNames.get(phone) || "").slice(0, 40) });
+  postToSheet({ type: "chat", phone: phone, dir: dir, text: String(text || "").slice(0, 1500), name: String(waNames.get(phone) || "").slice(0, 40) });
 }
 
 function chatLogOut(payload) {
@@ -788,6 +788,8 @@ function renderList(){
 function closeChat(){ document.body.classList.remove("chatopen"); }
 function openChat(p){ cur = p; document.body.classList.add("chatopen"); const w = document.getElementById("who"); const th = (data.threads || []).find(x => x.phone === p); if (w) w.textContent = (th && th.name ? th.name + "  ·  " : "") + "+" + p + (th && th.country && th.country !== "India" ? "  ·  " + th.country : ""); renderList(); renderChat(); }
 function renderChat(){
+  const prev = document.getElementById("msgs");
+  const stick = !prev || prev.scrollHeight - prev.scrollTop - prev.clientHeight < 60;
   const t = data.threads.find(x => x.phone === cur);
   const el = document.getElementById("msgs");
   const tb = document.getElementById("togglebot");
@@ -796,7 +798,7 @@ function renderChat(){
   tb.textContent = t.human ? "Bot: OFF" : "Bot: ON";
   function md(x) { var h = String(x || "").replace(/</g, "&lt;"); return h.replace(new RegExp("https?://[^ \\n<]+", "g"), function(u) { var l = '<a href="' + u + '" target="_blank" style="color:inherit;word-break:break-all">' + u + '</a>'; if (u.indexOf("uc?export=view") !== -1) l += '<a href="' + u + '" target="_blank"><img src="' + u + '" style="max-width:220px;max-height:220px;border-radius:8px;display:block;margin-top:4px"/></a>'; return l; }); }
   el.innerHTML = t.msgs.map(m => '<div class="m ' + (m.d === "in" ? "in" : "out") + '">' + md(m.t) + '<small>' + fmt(m.ts) + '</small></div>').join("");
-  el.scrollTop = el.scrollHeight;
+  if (stick) el.scrollTop = el.scrollHeight;
 }
 async function slotOffer(){
   const who = cur;

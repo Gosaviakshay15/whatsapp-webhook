@@ -174,8 +174,17 @@ app.post("/webhook", (req, res) => {
         try { flow = JSON.parse(it.nfm_reply.response_json); } catch (e) {}
         logChat(from, "in", formSummary(flow));
         noteStep(from, "form_done", String(flow.mode || ""));
-        setTimeout(() => sendTextTo(from, TXT_FORM_ACK), 1200);
-        if (!sawPrice.has(String(from || ""))) { setTimeout(function () { sendActions(from, TXT_AFTER_FORM, ["charges", "menu"]); }, 1500); }
+        const wantsDoc = String(flow.physio_choice || "").toLowerCase().indexOf("akshay") >= 0;
+        if (wantsDoc) {
+          const pr = consultPrice(from, String(flow.mode || "").toLowerCase().indexOf("clinic") >= 0 ? "clinic" : "online");
+          const bookUrl = PUBLIC_URL + "/book?m=" + (String(flow.mode || "").toLowerCase().indexOf("clinic") >= 0 ? "clinic" : "online") + "&p=" + encodeURIComponent(from);
+          setTimeout(function () {
+            sendTextTo(from, "Thank you. Dr. Akshay consults at " + CONSULT_TIMES_TEXT + ", and the consultation is " + pr.currency + " " + pr.amount + ".\n\nPick a time that suits you and your slot is confirmed as soon as payment is done.\n\n" + bookUrl);
+          }, 1200);
+        } else {
+          setTimeout(() => sendTextTo(from, TXT_FORM_ACK), 1200);
+          if (!sawPrice.has(String(from || ""))) { setTimeout(function () { sendActions(from, TXT_AFTER_FORM, ["charges", "menu"]); }, 1500); }
+        }
         if (flow.overall_rating) {
           postToSheet({ type: "feedback", phone: from, case_id: flow.case_id, physio: flow.physio, case_type: flow.case_type, overall_rating: flow.overall_rating, physio_rating: flow.physio_rating, recommend: flow.recommend, improve: flow.improve });
         } else {

@@ -15,6 +15,11 @@ const {
 const FLOW_ID = "998093659903522";
 const FDO_ALERT = process.env.FDO_ALERT_NUMBER || "918169168633";
 
+// Dr. Akshay's consult slots. ONE definition, referenced everywhere.
+const CONSULT_SLOTS = ["13:00", "18:00"];
+const CONSULT_LABEL = { "13:00": "1 PM", "18:00": "6 PM" };
+const CONSULT_TIMES_TEXT = "1 PM and 6 PM IST";
+
 const seen = new Set();
 const fbSent = new Set();
 const state = new Map();
@@ -42,7 +47,7 @@ const TXT_CLINIC = "🏥 *Consultation at our Andheri West clinic*\n\nTo get you
 const TXT_HOME = "🏠 *Home visit consultation, anywhere in Mumbai*\n\n🩺 Senior Physiotherapist: *Rs 1499*\nSession charges reduce when a longer treatment plan is needed.\n\nOur physio comes to you with everything needed for assessment and treatment. Dr. Akshay personally consults at the clinic and online.";
 const TXT_ASK_LOCATION = "🌍 Which city and country will you be in during your session? I will send you the charges and slot options for your time zone right away. 🕐";
 const TXT_NOTED = "Noted, thank you. Our care team will keep this in mind while confirming your slot.";
-const TXT_ONLINE_INDIA = "💻 *Online video consultation from India*\n\nTo get you the best results, we offer two starting points:\n\n*Option 1 — Senior Team Assessment: Rs 999*\nA detailed one on one evaluation with our senior physiotherapists, using Dr. Akshay's exact diagnostic framework to find your root cause and build your custom plan.\n🕐 Slots usually available within 24 hours\n\n*Option 2 — Premium Assessment with Dr. Akshay: Rs 3499*\nA one on one evaluation directly with Dr. Akshay.\n🕐 Dr. Akshay consults at *1 PM and 6 PM IST*, slots are limited\n\n📱 Sessions run on a video call link we share before your slot, and last *40 to 60 minutes*.";
+const TXT_ONLINE_INDIA = "💻 *Online video consultation from India*\n\nTo get you the best results, we offer two starting points:\n\n*Option 1 — Senior Team Assessment: Rs 999*\nA detailed one on one evaluation with our senior physiotherapists, using Dr. Akshay's exact diagnostic framework to find your root cause and build your custom plan.\n🕐 Slots usually available within 24 hours\n\n*Option 2 — Premium Assessment with Dr. Akshay: Rs 3499*\nA one on one evaluation directly with Dr. Akshay.\n🕐 Dr. Akshay consults at *" + CONSULT_TIMES_TEXT + "*, slots are limited\n\n📱 Sessions run on a video call link we share before your slot, and last *40 to 60 minutes*.";
 // ---- INTERNATIONAL RATE CARD ----
 const CURRENCY = [
   ["971", "AED", 90, 330], ["966", "SAR", 95, 340], ["974", "QAR", 90, 330],
@@ -311,7 +316,7 @@ function intlPricingText(phone) {
     "Senior Physiotherapist: *" + r.cur + " " + r.senior + "*\n" +
     "With Dr. Akshay: *" + r.cur + " " + r.akshay + "*\n\n" +
     "Your physiotherapist works outside clinic hours for that slot, which is the difference. The consultation itself is identical.\n\n" +
-    "Dr. Akshay consults at *1 PM and 6 PM IST*. For a slot outside that, our team checks his availability and confirms before anything is booked.\n\n" +
+    "Dr. Akshay consults at *" + CONSULT_TIMES_TEXT + "*. For a slot outside that, our team checks his availability and confirms before anything is booked.\n\n" +
     "\u{1F4F1} A video call link comes before your slot. Sessions last *40 to 60 minutes*.\n" +
     "\u{1F4B3} Payment by card link in your own currency.";
 }
@@ -1342,9 +1347,6 @@ app.post("/inbox/file", (req, res) => {
 
 // ---- NOBODY REPLIED WATCH (45 minutes) ----
 const pending = new Map();
-const CONSULT_SLOTS = ["13:00", "18:00"];
-const CONSULT_LABEL = { "13:00": "1 PM", "18:00": "6 PM" };
-const CONSULT_TIMES_TEXT = "1 PM and 6 PM IST";
 const PUBLIC_URL = process.env.PUBLIC_URL || "https://whatsapp-webhook-92ev.onrender.com";
 const FOLLOWUP = { single: { n: 1, rate: 999 }, pack5: { n: 5, rate: 949 }, pack10: { n: 10, rate: 899 } };
 
@@ -1720,7 +1722,7 @@ function sendActions(to, text, opts) {
 }
 
 const AKSHAY_WORDS = ["dr.akshay", "dr. akshay", "dr akshay", "drakshay", "akshay gosavi", "with akshay", "doctor akshay", "akshay sir"];
-const TXT_AKSHAY = "Namaste \u{1F64F}\n\nYes, you can book directly with *Dr. Akshay*.\n\n\u{1F468}\u200D\u2695\uFE0F *Consultation with Dr. Akshay*\nAt our Andheri West clinic: *Rs 3999*\nOnline video call: *Rs 3499*\n\nA one on one evaluation with him, 40 to 60 minutes.\n\u{1F550} He consults at *1 PM and 6 PM IST*, so slots are limited.\n\nIf you would rather start sooner, our senior physiotherapists use the same diagnostic framework and usually have slots within 24 hours at *Rs 999*.";
+const TXT_AKSHAY = "Namaste \u{1F64F}\n\nYes, you can book directly with *Dr. Akshay*.\n\n\u{1F468}\u200D\u2695\uFE0F *Consultation with Dr. Akshay*\nAt our Andheri West clinic: *Rs 3999*\nOnline video call: *Rs 3499*\n\nA one on one evaluation with him, 40 to 60 minutes.\n\u{1F550} He consults at *" + CONSULT_TIMES_TEXT + "*, so slots are limited.\n\nIf you would rather start sooner, our senior physiotherapists use the same diagnostic framework and usually have slots within 24 hours at *Rs 999*.";
 
 function firstTouch(to) {
   if (greeted.has(to)) return false;
@@ -1861,6 +1863,58 @@ app.get("/book/pay", (req, res) => {
   });
 });
 
+// International patients: request a time outside the two standing slots.
+app.get("/book/request", (req, res) => {
+  const phone = String(req.query.p || "").replace(/\D/g, "");
+  const pr = consultPrice(phone, "online");
+  res.set("Content-Type", "text/html; charset=utf-8");
+  res.send('<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+    '<title>Request a time</title><style>' +
+    'body{font-family:Segoe UI,system-ui,Arial,sans-serif;background:#FAFAF5;margin:0;padding:22px 16px;color:#222;}' +
+    '.w{max-width:460px;margin:0 auto;}h1{font-size:19px;color:#1E4D2B;margin:0 0 6px;}' +
+    'p.s{font-size:14px;color:#666;margin:0 0 18px;line-height:1.6;}' +
+    'label{display:block;font-size:14px;margin:14px 0 6px;}' +
+    'input,select{width:100%;padding:12px;font-size:16px;border:1px solid #ccc;border-radius:8px;background:#fff;}' +
+    'button{width:100%;margin-top:20px;padding:15px;font-size:16px;font-weight:600;background:#F5B800;border:0;border-radius:10px;}' +
+    '.ok{display:none;background:#fff;border:1px solid #ddd;border-radius:12px;padding:20px;font-size:15px;line-height:1.6;}' +
+    '</style></head><body><div class="w">' +
+    '<h1>Request a consultation time</h1>' +
+    '<p class="s">Dr. Akshay consults at ' + CONSULT_TIMES_TEXT + '. If neither suits your timezone, tell us what works and we will come back with the closest we can offer.</p>' +
+    '<div id="form">' +
+    '<label>Your city and country</label><input id="city" placeholder="Dallas, United States">' +
+    '<label>What time of day suits you, in your own local time</label>' +
+    '<select id="pref"><option>Early morning</option><option>Late morning</option>' +
+    '<option>Afternoon</option><option selected>Evening</option><option>Late evening</option></select>' +
+    '<label>Any particular day</label><input id="day" placeholder="Weekday or weekend, or a date">' +
+    '<button onclick="go()">Send my request</button></div>' +
+    '<div class="ok" id="ok"><b>Request received.</b><br>Our team will reply on WhatsApp with the closest time we can offer. ' +
+    'The consultation is ' + pr.currency + ' ' + pr.amount + '.</div>' +
+    '<script>function go(){var b={p:"' + phone + '",city:document.getElementById("city").value,' +
+    'pref:document.getElementById("pref").value,day:document.getElementById("day").value};' +
+    'fetch("/book/request/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)})' +
+    '.then(function(){document.getElementById("form").style.display="none";' +
+    'document.getElementById("ok").style.display="block";});}<\/script>' +
+    '</div></body></html>');
+});
+
+app.post("/book/request/send", (req, res) => {
+  const b = req.body || {};
+  const phone = String(b.p || "").replace(/\D/g, "");
+  const pr = consultPrice(phone, "online");
+  const name = String(waNames.get(phone) || "");
+  sendAlert("[TIME REQUEST] " + (name || phone) + ", wa.me/" + phone +
+    ". Wants " + String(b.pref || "") + " local time in " + String(b.city || "not given") +
+    (b.day ? ", " + String(b.day) : "") +
+    ". Consultation " + pr.currency + " " + pr.amount + ". Reply with the closest slot we can offer.");
+  postToSheet({ phone: phone, name: name, mode: "Online",
+    join_from: String(b.city || ""), time_pref: String(b.pref || ""),
+    start_when: String(b.day || ""), source: "Time request" });
+  if (phone) {
+    sendTextTo(phone, "Thank you. We have your request and will come back with the closest time Dr. Akshay can offer for your timezone.");
+  }
+  res.json({ ok: true });
+});
 app.get("/cal", (req, res) => {
   if (String(req.query.pin || "") !== String(INBOX_PIN || "")) {
     return res.status(401).send("Physiocally calendar. Open with /cal?pin=YOURPIN");

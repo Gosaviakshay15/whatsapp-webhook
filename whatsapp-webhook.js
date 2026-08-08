@@ -172,15 +172,38 @@ app.post("/webhook", (req, res) => {
       if (it?.type === "nfm_reply") {
         let flow = {};
         try { flow = JSON.parse(it.nfm_reply.response_json); } catch (e) {}
+        if (flow && flow.slot && !flow.patient_name) {
+          const sp = String(flow.slot).split("|");
+          const sd = sp[0] || "";
+          const st = sp[1] || "";
+          logChat(from, "in", "Chose " + slotDayLabel(sd) + " " + slotLabel(st));
+          const md = String(pickedMode.get(from) || "").toLowerCase().indexOf("clinic") >= 0 ? "clinic" : "online";
+          const prc = consultPrice(from, md);
+          postToSheetCb({ type: "slot_lock", date: sd, time: st, phone: from }, function (lr) {
+            if (!lr || !lr.ok) {
+              sendTextTo(from, "Sorry, " + slotDayLabel(sd) + " at " + slotLabel(st) + " was just taken. Please pick another time.");
+              setTimeout(function () { sendSlotFlow(from, md); }, 1500);
+              return;
+            }
+            rzpCreateLink(from, prc.amount, prc.currency,
+              "Consultation with Dr. Akshay Gosavi, " + slotDayLabel(sd) + " " + slotLabel(st) + " IST",
+              function (link) {
+                if (!link) {
+                  sendAlert("[CONSULT] Could not create a pay link for wa.me/" + from + ". Please send it manually.");
+                  sendTextTo(from, "We are setting up your payment. Our team will message you in a moment.");
+                  return;
+                }
+                sendTextTo(from, "You have chosen " + slotDayLabel(sd) + " at " + slotLabel(st) + " IST.\n\nPay here to confirm your slot:\n" + link);
+              },
+              { slot_date: sd, slot_time: st, slot_mode: md });
+          });
+          return true;
+        }
         logChat(from, "in", formSummary(flow));
         noteStep(from, "form_done", String(flow.mode || ""));
         const wantsDoc = String(flow.physio_choice || "").toLowerCase().indexOf("akshay") >= 0;
         if (wantsDoc) {
-          const pr = consultPrice(from, String(flow.mode || "").toLowerCase().indexOf("clinic") >= 0 ? "clinic" : "online");
-          const bookUrl = PUBLIC_URL + "/book?m=" + (String(flow.mode || "").toLowerCase().indexOf("clinic") >= 0 ? "clinic" : "online") + "&p=" + encodeURIComponent(from);
-          setTimeout(function () {
-            sendTextTo(from, "Thank you. Dr. Akshay consults at " + CONSULT_TIMES_TEXT + ", and the consultation is " + pr.currency + " " + pr.amount + ".\n\nPick a time that suits you and your slot is confirmed as soon as payment is done.\n\n" + bookUrl);
-          }, 1200);
+          setTimeout(function () { sendSlotFlow(from, flow.mode); }, 1200);
         } else {
           setTimeout(() => sendTextTo(from, TXT_FORM_ACK), 1200);
           if (!sawPrice.has(String(from || ""))) { setTimeout(function () { sendActions(from, TXT_AFTER_FORM, ["charges", "menu"]); }, 1500); }
@@ -1343,6 +1366,49 @@ function consultPrice(phone, mode) {
   return { amount: r[3], currency: r[1], intl: true };
 }
 
+const SLOT_FLOW_ID = "1050831467412453";
+
+// Opens the slot picker inside WhatsApp. No link, no browser.
+function sendSlotFlow(to, mode) {
+  const m = String(mode || "").toLowerCase().indexOf("clinic") >= 0 ? "clinic" : "online";
+  const pr = consultPrice(to, m);
+  slotsFetch(7, false, function (slots) {
+    const open = slots.filter(function (s) { return s.state === "open"; });
+    if (!open.length) {
+      sendTextTo(to, "Dr. Akshay has no free slots in the next seven days. Our team will message you with the next available time.");
+      sendAlert("[CONSULT] " + nameFor(to) + " wa.me/" + to + " wanted a consult but no slots are open. Please reply with a time.");
+      return;
+    }
+    const options = open.slice(0, 20).map(function (s) {
+      return { id: s.date + "|" + s.time, title: slotDayLabel(s.date) + ", " + slotLabel(s.time) };
+    });
+    waSend({
+      messaging_product: "whatsapp",
+      to: to,
+      type: "interactive",
+      interactive: {
+        type: "flow",
+        body: { text: "Thank you. Pick a time that suits you and your slot is confirmed as soon as payment is done." },
+        action: {
+          name: "flow",
+          parameters: {
+            flow_message_version: "3",
+            flow_id: SLOT_FLOW_ID,
+            flow_cta: "Choose your time",
+            flow_action: "navigate",
+            flow_action_payload: {
+              screen: "SLOTS",
+              data: {
+                slot_options: options,
+                price_line: "Consultation " + pr.currency + " " + pr.amount + ", 40 to 60 minutes"
+              }
+            }
+          }
+        }
+      }
+    }, "slot flow", function () { sendTextTo(to, "Pick a time here: " + PUBLIC_URL + "/book?m=" + m + "&p=" + encodeURIComponent(to)); });
+  });
+}
 function slotsFetch(days, admin, cb) {
   postToSheetCb({ type: admin ? "slots_admin" : "slots", days: days }, function (resp) {
     cb((resp && resp.slots) ? resp.slots : []);

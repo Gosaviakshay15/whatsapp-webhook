@@ -255,7 +255,9 @@ function routeSelection(from, id) {
   if (id === "act_addr") return sendActions(from, TXT_ADDRESS, ["book", "menu"]);
   if (id === "mode_online") { setState(from, "awaiting_location"); return sendTextTo(from, TXT_ASK_LOCATION); }
   if (id === "upsell_packs") return sendPackButtons(from);
-  if (id === "upsell_next") return sendSingleButtons(from);
+  if (id === "pack5")  { sendFollowupPayLink(from, "pack5");  return true; }
+    if (id === "pack10") { sendFollowupPayLink(from, "pack10"); return true; }
+    if (id === "upsell_next") return sendSingleButtons(from);
   if (id.indexOf("pick_") === 0) { noteStep(from, "repeat"); return handlePick(from, id); }
   sendMenu(from);
 }
@@ -1308,6 +1310,50 @@ app.post("/inbox/file", (req, res) => {
 
 // ---- NOBODY REPLIED WATCH (45 minutes) ----
 const pending = new Map();
+const CONSULT_SLOTS = ["13:00", "18:00"];
+const CONSULT_LABEL = { "13:00": "1 PM", "18:00": "6 PM" };
+const CONSULT_TIMES_TEXT = "1 PM and 6 PM IST";
+const PUBLIC_URL = process.env.PUBLIC_URL || "https://whatsapp-webhook-92ev.onrender.com";
+const FOLLOWUP = { single: { n: 1, rate: 999 }, pack5: { n: 5, rate: 949 }, pack10: { n: 10, rate: 899 } };
+
+function slotLabel(t) { return CONSULT_LABEL[t] || t; }
+
+function slotDayLabel(ds) {
+  const p = String(ds).split("-");
+  const d = new Date(Date.UTC(Number(p[0]), Number(p[1]) - 1, Number(p[2])));
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const mons = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return days[d.getUTCDay()] + " " + d.getUTCDate() + " " + mons[d.getUTCMonth()];
+}
+
+function consultPrice(phone, mode) {
+  const p = String(phone || "");
+  const indian = p.indexOf("91") === 0 && p.length === 12;
+  if (indian) return { amount: (mode === "clinic" ? 3999 : 3499), currency: "INR", intl: false };
+  const r = rateFor(p);
+  return { amount: r.consult, currency: r.cur, intl: true };
+}
+
+function slotsFetch(days, admin, cb) {
+  postToSheetCb({ type: admin ? "slots_admin" : "slots", days: days }, function (resp) {
+    cb((resp && resp.slots) ? resp.slots : []);
+  });
+}
+
+function sendFollowupPayLink(phone, which) {
+  const f = FOLLOWUP[which];
+  if (!f) return;
+  const total = f.n * f.rate;
+  const label = f.n === 1 ? "1 physiotherapy session" : f.n + " session package at Rs " + f.rate + " each";
+  rzpCreateLink(phone, total, "INR", "Physiocally, " + label, function (link) {
+    if (!link) {
+      sendAlert("[FOLLOW UP] Could not create a pay link for wa.me/" + phone + ". Please send it manually.");
+      return;
+    }
+    sendTextTo(phone, "Here is your payment link for " + label + ".\n\n" + link +
+      "\n\nOnce payment is done our team will confirm your session timing with your physiotherapist.");
+  }, { followup: which, sessions: String(f.n) });
+}
 function notePending(phone, what, slow) { pending.set(String(phone), { at: Date.now(), what: what, wait: slow ? 4 * 60 : 45 }); }
 function clearPending(phone) { pending.delete(String(phone)); }
 function checkPending() {
@@ -1370,7 +1416,7 @@ function collectJson(res, cb) {
   res.on("end", () => { try { cb(JSON.parse(d)); } catch (e) { cb(null); } });
   res.on("error", () => cb(null));
 }
-function rzpCreateLink(phone, amount, currency, note, cb) {
+function rzpCreateLink(phone, amount, currency, note, cb, extra) {
   if (!RZP_ID || !RZP_SECRET) { console.log("razorpay keys missing"); return cb(""); }
   const payload = JSON.stringify({
     amount: Math.round(Number(amount) * 100),
@@ -1380,7 +1426,7 @@ function rzpCreateLink(phone, amount, currency, note, cb) {
     customer: { contact: "+" + String(phone) },
     notify: { sms: false, email: false },
     reminder_enable: false,
-    notes: { patient: String(phone) },
+    notes: Object.assign({ patient: String(phone) }, extra || {}),
     callback_method: ""
   });
   const auth = Buffer.from(RZP_ID + ":" + RZP_SECRET).toString("base64");
@@ -1445,7 +1491,14 @@ app.post("/razorpay", (req, res) => {
       const pm2 = e.payload && e.payload.payment && e.payload.payment.entity;
       payId = String((pm2 && pm2.id) || (pl2 && pl2.id) || "");
     } catch (err) {}
-    const dedupe = payId || (phone + ":" + amt);
+    let slotDate = "", slotTime = "", slotMode = "";
+        try {
+          const sn = src && src.notes ? src.notes : {};
+          slotDate = String(sn.slot_date || "");
+          slotTime = String(sn.slot_time || "");
+          slotMode = String(sn.slot_mode || "");
+        } catch (err2) {}
+        const dedupe = payId || (phone + ":" + amt);
     if (seenPayments.has(dedupe)) { console.log("duplicate razorpay event ignored " + dedupe); return res.json({ ok: true, duplicate: true }); }
     seenPayments.add(dedupe);
     if (seenPayments.size > 500) { const first = seenPayments.values().next().value; seenPayments.delete(first); }
@@ -1459,8 +1512,25 @@ app.post("/razorpay", (req, res) => {
       });
       clearPending(phone);
       logChat(phone, "in", "\u{1F4B0} PAID " + cur + " " + amt + " (confirmed by Razorpay)");
-      sendAlert("[PAID] " + nameFor(phone) + ", wa.me/" + phone + " has paid " + cur + " " + amt + ". Please block the slot and confirm the booking.");
-      sendTextTo(phone, "Payment received, thank you. Our care team is confirming your slot now and will message you here.");
+      if (slotDate && slotTime) {
+          postToSheetCb({ type: "slot_book", date: slotDate, time: slotTime,
+            phone: phone, name: String(waNames.get(phone) || ""), mode: slotMode,
+            amount: amt, note: payId }, function (sb) {
+            if (sb && !sb.ok) {
+              sendAlert("[SLOT CLASH] " + phone + " paid for " + slotDayLabel(slotDate) + " " +
+                slotLabel(slotTime) + " but it was already taken. Refund or reschedule needed.");
+            }
+          });
+        }
+        if (slotDate && slotTime) {
+            sendAlert("[CONSULT BOOKED] " + nameFor(phone) + ", wa.me/" + phone + " paid " + cur + " " + amt +
+              " and booked " + slotDayLabel(slotDate) + " at " + slotLabel(slotTime) + " IST. Already confirmed, nothing to do.");
+            sendTextTo(phone, "Payment received, thank you. Your consultation with Dr. Akshay is confirmed for " +
+              slotDayLabel(slotDate) + " at " + slotLabel(slotTime) + " IST. You will get the video link before the session.");
+          } else {
+            sendAlert("[PAID] " + nameFor(phone) + ", wa.me/" + phone + " has paid " + cur + " " + amt + ". Please block the slot and confirm the booking.");
+            sendTextTo(phone, "Payment received, thank you. Our care team is confirming your slot now and will message you here.");
+          }
     }
     res.json({ ok: true });
   } catch (e) { res.json({ ok: true }); }
@@ -1627,3 +1697,147 @@ function whoIs(phone) {
   const nm = waNames.get(phone) || "";
   return { name: nm, country: countryOf(phone) };
 }
+
+
+// ===== Consult booking pages =====
+app.get("/book", (req, res) => {
+  const phone = String(req.query.p || "").replace(/\D/g, "");
+  const mode = String(req.query.m || "online").toLowerCase() === "clinic" ? "clinic" : "online";
+  const pr = consultPrice(phone, mode);
+  slotsFetch(7, false, function (slots) {
+    const byDate = {};
+    slots.forEach(function (s) { if (!byDate[s.date]) byDate[s.date] = []; byDate[s.date].push(s); });
+    let rows = "";
+    Object.keys(byDate).sort().forEach(function (d) {
+      let cells = "";
+      byDate[d].forEach(function (s) {
+        if (s.state === "open") {
+          cells += '<a class="slot open" href="/book/pay?d=' + encodeURIComponent(s.date) +
+            '&t=' + encodeURIComponent(s.time) + '&m=' + mode + '&p=' + encodeURIComponent(phone) +
+            '">' + slotLabel(s.time) + '</a>';
+        } else {
+          cells += '<span class="slot taken">' + slotLabel(s.time) + ' &middot; Booked</span>';
+        }
+      });
+      rows += '<div class="row"><div class="day">' + slotDayLabel(d) + '</div><div class="cells">' + cells + '</div></div>';
+    });
+    if (!rows) rows = '<p class="none">No slots open in the next 7 days. Message us on WhatsApp and we will find you a time.</p>';
+    const extra = pr.intl
+      ? '<p class="foot">These times not workable where you are? <a href="/book/request?p=' + encodeURIComponent(phone) + '">Tell us what suits you</a>.</p>'
+      : "";
+    res.set("Content-Type", "text/html; charset=utf-8");
+    res.send('<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">' +
+      '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+      '<title>Book with Dr. Akshay Gosavi</title><style>' +
+      'body{font-family:Segoe UI,system-ui,Arial,sans-serif;background:#FAFAF5;color:#222;margin:0;padding:20px 16px;}' +
+      '.wrap{max-width:520px;margin:0 auto;}h1{font-size:20px;color:#1E4D2B;margin:0 0 4px;}' +
+      '.sub{font-size:14px;color:#666;margin:0 0 18px;}' +
+      '.row{display:flex;align-items:center;gap:12px;margin-bottom:10px;}' +
+      '.day{width:86px;font-size:14px;color:#555;flex:none;}' +
+      '.cells{display:flex;gap:8px;flex:1;}' +
+      '.slot{flex:1;text-align:center;padding:14px 8px;border-radius:10px;font-size:16px;text-decoration:none;}' +
+      '.open{background:#fff;border:1px solid #1E4D2B;color:#1E4D2B;font-weight:600;}' +
+      '.taken{background:#EFEFEA;color:#999;}' +
+      '.none{background:#fff;border:1px solid #ddd;border-radius:10px;padding:16px;font-size:14px;}' +
+      '.foot{font-size:12px;color:#888;margin-top:18px;line-height:1.6;}' +
+      '</style></head><body><div class="wrap">' +
+      '<h1>Consultation with Dr. Akshay Gosavi</h1>' +
+      '<p class="sub">' + (mode === "clinic" ? "At the Andheri West clinic" : "Online video call") +
+      ' &middot; ' + pr.currency + ' ' + pr.amount + ' &middot; 40 to 60 minutes</p>' + rows + extra +
+      '<p class="foot">All times are India Standard Time. Your slot is confirmed as soon as payment is done.</p>' +
+      '</div></body></html>');
+  });
+});
+
+app.get("/book/pay", (req, res) => {
+  const date = String(req.query.d || "");
+  const time = String(req.query.t || "");
+  const mode = String(req.query.m || "online").toLowerCase() === "clinic" ? "clinic" : "online";
+  const phone = String(req.query.p || "").replace(/\D/g, "");
+  const pr = consultPrice(phone, mode);
+  function fail(msg) {
+    res.set("Content-Type", "text/html; charset=utf-8");
+    res.send('<!DOCTYPE html><html><head><meta charset="UTF-8">' +
+      '<meta name="viewport" content="width=device-width, initial-scale=1"></head>' +
+      '<body style="font-family:Segoe UI,system-ui,Arial,sans-serif;background:#FAFAF5;padding:28px 18px;color:#222;">' +
+      '<div style="max-width:420px;margin:0 auto;background:#fff;border:1px solid #ddd;border-radius:12px;padding:20px;">' +
+      '<p style="margin:0 0 14px;font-size:15px;">' + msg + '</p>' +
+      '<a href="/book?m=' + mode + '&p=' + encodeURIComponent(phone) +
+      '" style="display:inline-block;background:#1E4D2B;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-size:15px;">See other times</a>' +
+      '</div></body></html>');
+  }
+  if (!date || !time) return fail("That link is incomplete. Please pick a time again.");
+  if (!phone || phone.length < 7) return fail("We could not identify your number. Please book from the WhatsApp link we sent you.");
+  postToSheetCb({ type: "slot_lock", date: date, time: time, phone: phone }, function (lr) {
+    if (!lr || !lr.ok) {
+      const why = lr && lr.reason;
+      if (why === "past") return fail("That time has already passed.");
+      if (why === "sunday") return fail("Dr. Akshay does not consult on Sundays.");
+      return fail("Sorry, " + slotDayLabel(date) + " at " + slotLabel(time) + " was just taken.");
+    }
+    rzpCreateLink(phone, pr.amount, pr.currency,
+      "Consultation with Dr. Akshay Gosavi, " + slotDayLabel(date) + " " + slotLabel(time) + " IST",
+      function (link) {
+        if (!link) return fail("We could not open the payment page. Please message us on WhatsApp.");
+        res.redirect(link);
+      },
+      { slot_date: date, slot_time: time, slot_mode: mode });
+  });
+});
+
+app.get("/cal", (req, res) => {
+  if (String(req.query.pin || "") !== String(INBOX_PIN || "")) {
+    return res.status(401).send("Physiocally calendar. Open with /cal?pin=YOURPIN");
+  }
+  const pin = String(req.query.pin || "");
+  slotsFetch(14, true, function (slots) {
+    const byDate = {};
+    slots.forEach(function (s) { if (!byDate[s.date]) byDate[s.date] = []; byDate[s.date].push(s); });
+    let rows = "";
+    Object.keys(byDate).sort().forEach(function (d) {
+      let cells = "";
+      byDate[d].forEach(function (s) {
+        const who = s.phone ? String(s.phone).slice(-4) : "";
+        if (s.state === "booked") {
+          cells += '<div class="c booked"><b>' + slotLabel(s.time) + '</b><span>Booked</span><span>' + s.caseId + '</span></div>';
+        } else if (s.state === "blocked") {
+          cells += '<div class="c blocked"><b>' + slotLabel(s.time) + '</b><span>Blocked</span>' +
+            '<a href="#" onclick="return blk(&quot;' + s.date + '&quot;,&quot;' + s.time + '&quot;,0)">Unblock</a></div>';
+        } else if (s.state === "locked") {
+          cells += '<div class="c locked"><b>' + slotLabel(s.time) + '</b><span>Paying now</span><span>' + who + '</span></div>';
+        } else {
+          cells += '<div class="c open"><b>' + slotLabel(s.time) + '</b><span>Open</span>' +
+            '<a href="#" onclick="return blk(&quot;' + s.date + '&quot;,&quot;' + s.time + '&quot;,1)">Block</a></div>';
+        }
+      });
+      rows += '<div class="r"><div class="d">' + slotDayLabel(d) + '</div><div class="cs">' + cells + '</div></div>';
+    });
+    res.set("Content-Type", "text/html; charset=utf-8");
+    res.send('<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">' +
+      '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+      '<title>Consult calendar</title><style>' +
+      'body{font-family:Segoe UI,system-ui,Arial,sans-serif;background:#FAFAF5;margin:0;padding:16px;color:#222;}' +
+      '.wrap{max-width:560px;margin:0 auto;}h1{font-size:18px;color:#1E4D2B;margin:0 0 14px;}' +
+      '.r{display:flex;gap:10px;margin-bottom:8px;}' +
+      '.d{width:84px;font-size:13px;color:#555;padding-top:12px;flex:none;}' +
+      '.cs{display:flex;gap:8px;flex:1;}' +
+      '.c{flex:1;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:2px;font-size:12px;min-height:58px;}' +
+      '.c b{font-size:14px;}' +
+      '.open{background:#fff;border:1px solid #cfcfc7;}' +
+      '.booked{background:#E1F5EE;color:#0F6E56;}' +
+      '.locked{background:#FAEEDA;color:#854F0B;}' +
+      '.blocked{background:#EFEFEA;color:#777;}' +
+      '.c a{color:#1E4D2B;font-size:12px;margin-top:auto;}' +
+      '</style></head><body><div class="wrap"><h1>Dr. Akshay consult calendar</h1>' + rows +
+      '<script>function blk(d,t,on){fetch("/cal/block?pin=' + pin +
+      '&d="+encodeURIComponent(d)+"&t="+encodeURIComponent(t)+"&on="+on)' +
+      '.then(function(r){return r.json()}).then(function(j){if(j&&j.ok){location.reload()}else{alert("Could not change that slot.")}});return false;}<\/script>' +
+      '</div></body></html>');
+  });
+});
+
+app.get("/cal/block", (req, res) => {
+  if (String(req.query.pin || "") !== String(INBOX_PIN || "")) return res.status(401).json({ ok: false });
+  postToSheetCb({ type: "slot_block", date: String(req.query.d || ""), time: String(req.query.t || ""),
+    on: String(req.query.on || "1") === "1", note: "" }, function (r) { res.json(r || { ok: false }); });
+});

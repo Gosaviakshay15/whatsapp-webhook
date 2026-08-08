@@ -20,6 +20,7 @@ const fbSent = new Set();
 const state = new Map();
 const human = new Map();
 const chats = new Map();
+const websiteSeen = new Set();
 let msgSeq = 0;
 function nextSeq() { msgSeq += 1; return msgSeq; }
 const INBOX_PIN = process.env.INBOX_PIN || "72934";
@@ -604,17 +605,31 @@ app.post("/wix", (req, res) => {
   res.set("Access-Control-Allow-Origin", "*");
   try {
     const b = req.body || {};
-    if (!b.phone || String(b.phone).replace(/[^0-9]/g, "").length < 8) {
-      return res.status(400).json({ error: "valid phone required" });
-    }
+    const raw = String(b.phone || "").replace(/\D/g, "");
+    if (raw.length < 7) return res.status(400).json({ error: "valid phone required" });
+    const cc = String(b.country_code || "").replace(/\D/g, "");
+    let phone;
+    if (cc) phone = raw.indexOf(cc) === 0 && raw.length > 10 ? raw : cc + raw;
+    else phone = raw.length === 10 ? "91" + raw : raw;
+
+    const already = websiteSeen.has(phone);
+    websiteSeen.add(phone);
+
     postToSheet({
-      phone: String(b.phone).replace(/[^0-9]/g, "").replace(/^(\d{10})$/, "91$1"),
-      name: b.name, mode: b.mode, join_from: b.join_from || "",
+      phone: phone,
+      name: b.name, mode: b.mode, join_from: b.join_from,
       time_pref: b.time_pref, physio_choice: b.physio_choice,
       condition: b.condition, start_when: b.start_when,
       source: "Website",
     });
-    res.json({ ok: true });
+
+    const bits = [b.mode, b.condition, b.start_when ? "start " + b.start_when : "", b.time_pref, b.physio_choice, b.join_from ? "joining from " + b.join_from : ""]
+      .map(function (x) { return String(x || "").trim(); }).filter(Boolean).join(", ");
+    sendAlert("[WEBSITE FORM] " + String(b.name || "No name") + ", wa.me/" + phone + ". " + bits +
+      (already ? ". Already enquired via website before." : "") +
+      ". They are being sent to WhatsApp now.");
+
+    res.json({ ok: true, phone: phone });
   } catch (e) {
     console.error("wix route error:", e);
     res.status(500).json({ error: "internal" });

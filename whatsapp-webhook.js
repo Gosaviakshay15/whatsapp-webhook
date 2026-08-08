@@ -20,6 +20,8 @@ const fbSent = new Set();
 const state = new Map();
 const human = new Map();
 const chats = new Map();
+let msgSeq = 0;
+function nextSeq() { msgSeq += 1; return msgSeq; }
 const INBOX_PIN = process.env.INBOX_PIN || "72934";
 
 function setState(from, s) { state.set(from, { s, ts: Date.now() }); }
@@ -80,6 +82,7 @@ const TXT_UPSELL_NEXT = "A single follow up session is *Rs 999*.\n\nReply here a
 const TXT_UPSELL_NO = "No problem! Whenever you are ready, just message us here. Wishing you a speedy recovery 💚";
 const COND_CTA = "\n\n📅 Our physio will assess your case and design a plan around it.";
 const CONDITIONS = [
+  { k: ["tinnitus", "ear ringing", "ringing sound", "ringing in ear", "buzzing ear", "ear noise"], t: "That constant ringing or buzzing, especially noticeable when everything else is quiet, is exhausting in a way that is hard to describe to anyone.\n\nWhen it comes from the neck or jaw, physiotherapy often helps. Our physio will check whether that is the case for you." },
   { k: ["vertigo", "dizzy", "dizziness", "giddiness", "bppv", "balance"], t: "When the room spins as you turn over in bed or sit up too quickly, it is unsettling in a way that is hard to explain to anyone else.\n\nVertigo has several possible causes, and once the right one is identified it is very treatable." },
   { k: ["tmj", "jaw", "jaw pain", "lock jaw", "clicking jaw"], t: "The click when you yawn, the ache while chewing, and the tightness that spreads up the side of your face by evening.\n\nThe jaw rarely works alone, the neck is usually involved too, and it eases well once both are treated." },
   { k: ["migraine", "headache", "head ache"], t: "Many people find their headaches start with tightness in the neck and shoulders, before the head pain even begins.\n\nWhen the neck is part of the problem, treating it can reduce how often the headaches come." },
@@ -644,7 +647,7 @@ function logChat(phone, dir, text) {
   if (dir === "in") noteLead(phone);
   let a = chats.get(phone);
   if (!a) { a = []; chats.set(phone, a); }
-  a.push({ d: dir, t: String(text || "").slice(0, 1000), ts: Date.now() });
+  a.push({ d: dir, t: String(text || "").slice(0, 1000), ts: Date.now(), q: nextSeq() });
   if (a.length > 200) a.splice(0, a.length - 200);
   postToSheet({ type: "chat", phone: phone, dir: dir, text: String(text || "").slice(0, 1500), name: String(waNames.get(phone) || "").slice(0, 40) });
 }
@@ -845,7 +848,7 @@ function renderChat(){
   tb.style.display = "";
   tb.textContent = t.human ? "Bot: OFF" : "Bot: ON";
   function md(x) { var h = String(x || "").replace(/</g, "&lt;"); return h.replace(new RegExp("https?://[^ \\n<]+", "g"), function(u) { var l = '<a href="' + u + '" target="_blank" style="color:inherit;word-break:break-all">' + u + '</a>'; if (u.indexOf("uc?export=view") !== -1) l += '<a href="' + u + '" target="_blank"><img src="' + u + '" style="max-width:220px;max-height:220px;border-radius:8px;display:block;margin-top:4px"/></a>'; return l; }); }
-  el.innerHTML = t.msgs.map(m => '<div class="m ' + (m.d === "in" ? "in" : "out") + '">' + md(m.t) + '<small>' + fmt(m.ts) + '</small></div>').join("");
+  el.innerHTML = t.msgs.map(m => '<div class="m ' + (m.d === "in" ? "in" : "out") + '">' + md(m.t) + '<small>' + (m.d === "in" ? 'Patient' : 'Physiocally') + ' &middot; ' + fmt(m.ts) + '</small></div>').join("");
   if (stick) el.scrollTop = el.scrollHeight;
 }
 async function slotOffer(){
@@ -973,11 +976,11 @@ function collectHistory(res) {
         if (!phone) return;
         let a = chats.get(phone);
         if (!a) { a = []; chats.set(phone, a); }
-        a.push({ d: r[2] === "out" ? "out" : "in", t: String(r[3] || "").slice(0, 1000), ts: Number(r[0]) || Date.now() });
+        a.push({ d: r[2] === "out" ? "out" : "in", t: String(r[3] || "").slice(0, 1000), ts: Number(r[0]) || Date.now() , q: nextSeq() });
         const nm = String(r[4] || "").trim();
         if (nm) waNames.set(phone, nm.slice(0, 40));
       });
-      chats.forEach((a) => { a.sort((x, y) => x.ts - y.ts); if (a.length > 200) a.splice(0, a.length - 200); });
+      chats.forEach((a) => { a.sort((x, y) => (x.ts - y.ts) || ((x.q || 0) - (y.q || 0))); if (a.length > 200) a.splice(0, a.length - 200); });
       console.log("hydrated chats:", chats.size, "threads");
     } catch (e) { hydrated = false; console.log("hydrate parse error", e.message); }
   });

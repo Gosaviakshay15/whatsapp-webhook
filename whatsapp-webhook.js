@@ -1668,7 +1668,8 @@ function checkIntent(from, body) {
       return true;
     }
     noteStep(from, "charges");
-    sendActions(from, TXT_AKSHAY, ["book", "menu"]);
+    const bookUrl = PUBLIC_URL + "/book?m=online&p=" + encodeURIComponent(from);
+      sendActions(from, TXT_AKSHAY + "\n\nPick a time that suits you here:\n" + bookUrl, ["book", "menu"]);
     return true;
   }
   if (firstTouch(from) && BOOK_WORDS.some((w) => low.includes(w))) {

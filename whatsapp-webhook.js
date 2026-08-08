@@ -1331,7 +1331,7 @@ function consultPrice(phone, mode) {
   const indian = p.indexOf("91") === 0 && p.length === 12;
   if (indian) return { amount: (mode === "clinic" ? 3999 : 3499), currency: "INR", intl: false };
   const r = rateFor(p);
-  return { amount: r.consult, currency: r.cur, intl: true };
+  return { amount: r[3], currency: r[1], intl: true };
 }
 
 function slotsFetch(days, admin, cb) {
